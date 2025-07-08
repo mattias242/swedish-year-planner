@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Swedish Year Planner - Scaleway Deployment Script
+# Swedish Year Planner - Simplified Scaleway Deployment Script
 set -e
 
 # Load environment variables from .env file if it exists
@@ -28,30 +28,48 @@ BUCKET_NAME=${BUCKET_NAME:-"${PROJECT_NAME}-${ENVIRONMENT}"}
 NAMESPACE_ID=${NAMESPACE_ID:-""}
 FUNCTION_ID=${FUNCTION_ID:-""}
 
-echo -e "${BLUE}🇸🇪 Swedish Year Planner - Scaleway Deployment${NC}"
-echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
-echo -e "${BLUE}Region: ${REGION}${NC}"
-echo ""
+# Handle help flag
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Swedish Year Planner - Scaleway Deployment Script"
+    echo ""
+    echo "Usage: $0 [ENVIRONMENT] [REGION]"
+    echo ""
+    echo "Arguments:"
+    echo "  ENVIRONMENT    Deployment environment (default: prod)"
+    echo "  REGION         Scaleway region (default: fr-par)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Deploy to prod in fr-par"
+    echo "  $0 staging           # Deploy to staging in fr-par"
+    echo "  $0 prod nl-ams       # Deploy to prod in nl-ams"
+    echo ""
+    exit 0
+fi
+
+printf "${BLUE}🇸🇪 Swedish Year Planner - Scaleway Deployment${NC}\n"
+printf "${BLUE}Environment: ${ENVIRONMENT}${NC}\n"
+printf "${BLUE}Region: ${REGION}${NC}\n"
+printf "\n"
 
 # Check required tools
 check_tool() {
     if ! command -v $1 &> /dev/null; then
-        echo -e "${RED}❌ $1 is not installed. Please install it first.${NC}"
+        printf "${RED}❌ $1 is not installed. Please install it first.${NC}\n"
         exit 1
     fi
 }
 
-echo -e "${YELLOW}🔧 Checking required tools...${NC}"
+printf "${YELLOW}🔧 Checking required tools...${NC}\n"
 check_tool "scw"
 check_tool "node"
 check_tool "npm"
 check_tool "zip"
-echo -e "${GREEN}✅ All required tools are available${NC}"
+printf "${GREEN}✅ All required tools are available${NC}\n"
 
 # Check Scaleway CLI configuration
-echo -e "${YELLOW}🔑 Checking Scaleway CLI configuration...${NC}"
+printf "${YELLOW}🔑 Checking Scaleway CLI configuration...${NC}\n"
 if ! scw config get default-project-id &> /dev/null; then
-    echo -e "${RED}❌ Scaleway CLI not configured. Please run:${NC}"
+    printf "${RED}❌ Scaleway CLI not configured. Please run:${NC}\n"
     echo "scw init"
     exit 1
 fi
@@ -60,182 +78,110 @@ fi
 SCW_PROJECT_ID=$(scw config get default-project-id)
 SCW_REGION=$(scw config get default-region || echo $REGION)
 
-echo -e "${GREEN}✅ Scaleway CLI configured${NC}"
-echo -e "${BLUE}Project ID: ${SCW_PROJECT_ID}${NC}"
-echo -e "${BLUE}Region: ${SCW_REGION}${NC}"
+printf "${GREEN}✅ Scaleway CLI configured${NC}\n"
+printf "${BLUE}Project ID: ${SCW_PROJECT_ID}${NC}\n"
+printf "${BLUE}Region: ${SCW_REGION}${NC}\n"
 
 # Build function package
-echo -e "${YELLOW}📦 Building function package...${NC}"
+printf "${YELLOW}📦 Building function package...${NC}\n"
 cd functions
-npm install --production
-zip -r function.zip . -x node_modules/.bin/\* \*.log
+
+# Clean previous builds
+rm -f function.zip
+
+# Install dependencies
+npm ci --omit=dev
+
+# Create function package with correct structure
+zip -r function.zip . -x "node_modules/.bin/*" "*.log" ".DS_Store"
+
 cd ..
 
-# Create Object Storage buckets
-echo -e "${YELLOW}☁️  Creating Object Storage buckets...${NC}"
-BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
-BACKUP_BUCKET_NAME="${PROJECT_NAME}-backups-${ENVIRONMENT}"
-
-# Create website bucket
-scw object bucket create name=${BUCKET_NAME} region=${SCW_REGION} || echo "Bucket ${BUCKET_NAME} may already exist"
-
-# Configure bucket for website hosting
-scw object bucket website set bucket=${BUCKET_NAME} index-document=index.html error-document=error.html region=${SCW_REGION}
-
-# Set bucket CORS for API access
-echo -e "${YELLOW}🔧 Configuring CORS for bucket...${NC}"
-cat > cors-config.json << EOF
-{
-  "CORSRules": [
-    {
-      "AllowedHeaders": ["*"],
-      "AllowedMethods": ["GET", "HEAD", "POST", "PUT", "DELETE"],
-      "AllowedOrigins": ["*"],
-      "ExposeHeaders": ["ETag"],
-      "MaxAgeSeconds": 3000
-    }
-  ]
-}
-EOF
-
-scw object bucket cors set ${BUCKET_NAME} cors-config.json region=${SCW_REGION}
-rm cors-config.json
-
-# Create backup bucket
-scw object bucket create name=${BACKUP_BUCKET_NAME} region=${SCW_REGION} || echo "Backup bucket may already exist"
-
-# Create Function Namespace
-echo -e "${YELLOW}⚡ Creating Function Namespace...${NC}"
-NAMESPACE_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
-
-# Check if namespace exists
-NAMESPACE_ID=$(scw function namespace list name=${NAMESPACE_NAME} -o json | jq -r '.[0].id // empty' 2>/dev/null || echo "")
-
-if [ -z "$NAMESPACE_ID" ]; then
-    echo -e "${YELLOW}Creating new namespace: ${NAMESPACE_NAME}${NC}"
-    NAMESPACE_ID=$(scw function namespace create name=${NAMESPACE_NAME} region=${SCW_REGION} -o json | jq -r '.id')
-else
-    echo -e "${GREEN}Using existing namespace: ${NAMESPACE_NAME} (${NAMESPACE_ID})${NC}"
-fi
-
-# Create/Update Function
-echo -e "${YELLOW}🚀 Deploying serverless function...${NC}"
-FUNCTION_NAME="api"
-
-# Check if function exists
-FUNCTION_ID=$(scw function function list namespace-id=${NAMESPACE_ID} name=${FUNCTION_NAME} -o json | jq -r '.[0].id // empty' 2>/dev/null || echo "")
-
-if [ -z "$FUNCTION_ID" ]; then
-    echo -e "${YELLOW}Creating new function: ${FUNCTION_NAME}${NC}"
-    FUNCTION_ID=$(scw function function create \
-        namespace-id=${NAMESPACE_ID} \
-        name=${FUNCTION_NAME} \
-        runtime=node18 \
-        handler=index.handler \
-        privacy=public \
-        zip-file=functions/function.zip \
-        region=${SCW_REGION} \
-        -o json | jq -r '.id')
-else
-    echo -e "${YELLOW}Updating existing function: ${FUNCTION_NAME} (${FUNCTION_ID})${NC}"
-    scw function function update \
-        function-id=${FUNCTION_ID} \
-        zip-file=functions/function.zip \
-        region=${SCW_REGION}
-fi
-
-# Wait for function to be ready
-echo -e "${YELLOW}⏳ Waiting for function to be ready...${NC}"
-while true; do
-    STATUS=$(scw function function get function-id=${FUNCTION_ID} region=${SCW_REGION} -o json | jq -r '.status')
-    if [ "$STATUS" = "ready" ]; then
-        break
+# Deploy function (using existing namespace and function IDs)
+if [ -n "$NAMESPACE_ID" ] && [ -n "$FUNCTION_ID" ]; then
+    printf "${YELLOW}🚀 Updating existing function...${NC}\n"
+    scw function deploy namespace-id=$NAMESPACE_ID name=api runtime=node20 zip-file=functions/function.zip
+    
+    # Set environment variables if we have credentials
+    if [ -n "$SCW_ACCESS_KEY" ] && [ -n "$SCW_SECRET_KEY" ]; then
+        printf "${YELLOW}🔧 Setting environment variables for Object Storage...${NC}\n"
+        scw function function update \
+            function-id=$FUNCTION_ID \
+            environment-variables="{\"SCW_ACCESS_KEY\":\"$SCW_ACCESS_KEY\",\"SCW_SECRET_KEY\":\"$SCW_SECRET_KEY\",\"BUCKET_NAME\":\"$BUCKET_NAME\"}" \
+            region=$SCW_REGION
+        printf "${GREEN}✅ Object Storage enabled${NC}\n"
+    else
+        printf "${YELLOW}⚠️  No Object Storage credentials - using in-memory fallback${NC}\n"
     fi
-    echo -e "${YELLOW}Function status: ${STATUS}, waiting...${NC}"
-    sleep 5
-done
+else
+    printf "${RED}❌ NAMESPACE_ID and FUNCTION_ID required in .env file${NC}\n"
+    printf "${YELLOW}Please add these to your .env file:${NC}\n"
+    echo "NAMESPACE_ID=252e6879-01b4-452a-83cf-95d61195ad79"
+    echo "FUNCTION_ID=dc67de62-a37a-4b18-b01f-5bba61945af0"
+    exit 1
+fi
 
 # Get function endpoint
-FUNCTION_ENDPOINT=$(scw function function get function-id=${FUNCTION_ID} region=${SCW_REGION} -o json | jq -r '.domain_name')
+FUNCTION_ENDPOINT=$(scw function function get function-id=$FUNCTION_ID region=$SCW_REGION -o json | jq -r '.domain_name')
 API_URL="https://${FUNCTION_ENDPOINT}"
 
 # Update frontend configuration
-echo -e "${YELLOW}⚙️  Updating frontend configuration...${NC}"
+printf "${YELLOW}⚙️  Updating frontend configuration...${NC}\n"
 cat > config.js << EOF
 // Scaleway deployment configuration
 window.APP_CONFIG = {
     API_BASE_URL: '${API_URL}',
     ENVIRONMENT: '${ENVIRONMENT}',
-    VERSION: '1.0.0'
+    VERSION: '1.0.0',
+    ENABLE_CLOUD_STORAGE: true
 };
 EOF
 
-# Upload static files to Object Storage
-echo -e "${YELLOW}📤 Uploading static files to Object Storage...${NC}"
-
-# Upload HTML files
-scw object object put bucket=${BUCKET_NAME} key=index.html file=index.html region=${SCW_REGION} content-type=text/html cache-control="public, max-age=300"
-
-# Upload CSS files
-scw object object put bucket=${BUCKET_NAME} key=styles.css file=styles.css region=${SCW_REGION} content-type=text/css cache-control="public, max-age=31536000"
-
-# Upload JS files
-scw object object put bucket=${BUCKET_NAME} key=script.js file=script.js region=${SCW_REGION} content-type=application/javascript cache-control="public, max-age=31536000"
-
-# Upload config file
-scw object object put bucket=${BUCKET_NAME} key=config.js file=config.js region=${SCW_REGION} content-type=application/javascript cache-control="public, max-age=300"
-
-# Create error page
-cat > error.html << EOF
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Error - Swedish Year Planner</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        h1 { color: #667eea; }
-    </style>
-</head>
-<body>
-    <h1>🇸🇪 Swedish Year Planner</h1>
-    <h2>Oops! Page not found</h2>
-    <p><a href="/">Return to Year Planner</a></p>
-</body>
-</html>
-EOF
-
-scw object object put bucket=${BUCKET_NAME} key=error.html file=error.html region=${SCW_REGION} content-type=text/html
-
-# Get website URL
-WEBSITE_URL="https://${BUCKET_NAME}.s3-website.${SCW_REGION}.scw.cloud"
+# Test deployment with static files (if AWS CLI is available)
+if command -v aws &> /dev/null; then
+    printf "${YELLOW}📤 Uploading static files to Object Storage...${NC}\n"
+    
+    # Upload files using AWS CLI for S3-compatible storage
+    aws s3 cp index.html s3://$BUCKET_NAME/ --endpoint-url=https://s3.$SCW_REGION.scw.cloud
+    aws s3 cp styles.css s3://$BUCKET_NAME/ --endpoint-url=https://s3.$SCW_REGION.scw.cloud
+    aws s3 cp script.js s3://$BUCKET_NAME/ --endpoint-url=https://s3.$SCW_REGION.scw.cloud
+    aws s3 cp config.js s3://$BUCKET_NAME/ --endpoint-url=https://s3.$SCW_REGION.scw.cloud
+    aws s3 cp error.html s3://$BUCKET_NAME/ --endpoint-url=https://s3.$SCW_REGION.scw.cloud 2>/dev/null || echo "error.html not found, skipping"
+    
+    printf "${GREEN}✅ Static files uploaded${NC}\n"
+    
+    # Get website URL
+    WEBSITE_URL="https://${BUCKET_NAME}.s3-website.${SCW_REGION}.scw.cloud"
+else
+    printf "${YELLOW}⚠️  AWS CLI not found - static files not uploaded${NC}\n"
+    WEBSITE_URL="Not available (AWS CLI required)"
+fi
 
 # Test API endpoint
-echo -e "${YELLOW}🧪 Testing API endpoint...${NC}"
+printf "${YELLOW}🧪 Testing API endpoint...${NC}\n"
 if curl -s "${API_URL}/api/health" > /dev/null; then
-    echo -e "${GREEN}✅ API endpoint is responding${NC}"
+    printf "${GREEN}✅ API endpoint is responding${NC}\n"
 else
-    echo -e "${YELLOW}⚠️  API endpoint may not be ready yet${NC}"
+    printf "${YELLOW}⚠️  API endpoint may not be ready yet${NC}\n"
 fi
 
 # Cleanup
-rm -f config.js error.html
+rm -f config.js
 
 echo ""
-echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+printf "${GREEN}🎉 Deployment completed successfully!${NC}\n"
 echo ""
-echo -e "${BLUE}📱 Website URL: ${WEBSITE_URL}${NC}"
-echo -e "${BLUE}🔗 API URL: ${API_URL}${NC}"
-echo -e "${BLUE}📦 Bucket: ${BUCKET_NAME}${NC}"
-echo -e "${BLUE}⚡ Function ID: ${FUNCTION_ID}${NC}"
+printf "${BLUE}📱 Website URL: ${WEBSITE_URL}${NC}\n"
+printf "${BLUE}🔗 API URL: ${API_URL}${NC}\n"
+printf "${BLUE}📦 Bucket: ${BUCKET_NAME}${NC}\n"
+printf "${BLUE}⚡ Function ID: ${FUNCTION_ID}${NC}\n"
 echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Visit the website URL to test your deployment"
-echo "2. The app now uses serverless functions for data persistence"
-echo "3. Monitor your function logs: scw function log list function-id=${FUNCTION_ID}"
+printf "${YELLOW}Next steps:${NC}\n"
+echo "1. Visit the API URL to test the health endpoint"
+echo "2. The app now uses Object Storage if credentials are configured"
+echo "3. Check function logs: scw function function logs function-id=${FUNCTION_ID}"
 echo ""
-echo -e "${GREEN}Happy planning! 🇸🇪✨${NC}"
+printf "${GREEN}Happy planning! 🇸🇪✨${NC}\n"
 
 # Save deployment info
 cat > deployment-info.json << EOF
@@ -246,11 +192,11 @@ cat > deployment-info.json << EOF
   "website_url": "${WEBSITE_URL}",
   "api_url": "${API_URL}",
   "bucket_name": "${BUCKET_NAME}",
-  "backup_bucket_name": "${BACKUP_BUCKET_NAME}",
   "namespace_id": "${NAMESPACE_ID}",
   "function_id": "${FUNCTION_ID}",
-  "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "object_storage_enabled": $([ -n "$SCW_ACCESS_KEY" ] && echo "true" || echo "false")
 }
 EOF
 
-echo -e "${BLUE}📋 Deployment info saved to deployment-info.json${NC}"
+printf "${BLUE}📋 Deployment info saved to deployment-info.json${NC}\n"
