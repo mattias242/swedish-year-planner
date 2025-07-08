@@ -110,7 +110,9 @@ if [ -n "$NAMESPACE_ID" ] && [ -n "$FUNCTION_ID" ]; then
         printf "${YELLOW}🔧 Setting environment variables for Object Storage...${NC}\n"
         scw function function update \
             function-id=$FUNCTION_ID \
-            environment-variables="{\"SCW_ACCESS_KEY\":\"$SCW_ACCESS_KEY\",\"SCW_SECRET_KEY\":\"$SCW_SECRET_KEY\",\"BUCKET_NAME\":\"$BUCKET_NAME\"}" \
+            environment-variables.SCW_ACCESS_KEY="$SCW_ACCESS_KEY" \
+            environment-variables.SCW_SECRET_KEY="$SCW_SECRET_KEY" \
+            environment-variables.BUCKET_NAME="$BUCKET_NAME" \
             region=$SCW_REGION
         printf "${GREEN}✅ Object Storage enabled${NC}\n"
     else
