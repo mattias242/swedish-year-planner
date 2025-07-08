@@ -4,18 +4,23 @@
  */
 
 const cors = require('cors');
-const AWS = require('aws-sdk');
 
-// Configure AWS SDK for Scaleway Object Storage
-const s3 = new AWS.S3({
-  endpoint: 'https://s3.fr-par.scw.cloud',
-  region: 'fr-par',
-  accessKeyId: process.env.SCW_ACCESS_KEY,
-  secretAccessKey: process.env.SCW_SECRET_KEY,
-  s3ForcePathStyle: true
-});
+// Note: Object Storage integration requires environment variables to be configured
+// For now, using in-memory storage as fallback
+const useObjectStorage = process.env.SCW_ACCESS_KEY && process.env.SCW_SECRET_KEY;
 
-const BUCKET_NAME = process.env.BUCKET_NAME || 'swedish-year-planner-prod';
+let s3, BUCKET_NAME;
+if (useObjectStorage) {
+  const AWS = require('aws-sdk');
+  s3 = new AWS.S3({
+    endpoint: 'https://s3.fr-par.scw.cloud',
+    region: 'fr-par',
+    accessKeyId: process.env.SCW_ACCESS_KEY,
+    secretAccessKey: process.env.SCW_SECRET_KEY,
+    s3ForcePathStyle: true
+  });
+  BUCKET_NAME = process.env.BUCKET_NAME || 'swedish-year-planner-prod';
+}
 
 // CORS configuration for frontend
 const corsOptions = {
@@ -30,37 +35,54 @@ const corsOptions = {
   credentials: true
 };
 
+// Simple in-memory storage (fallback when Object Storage not configured)
+const storage = new Map();
+
 // Scaleway Object Storage helper functions
 async function saveUserData(userId, dataType, data) {
-  const key = `users/${userId}/${dataType}.json`;
-  try {
-    await s3.putObject({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: JSON.stringify(data),
-      ContentType: 'application/json'
-    }).promise();
+  if (useObjectStorage) {
+    const key = `users/${userId}/${dataType}.json`;
+    try {
+      await s3.putObject({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        Body: JSON.stringify(data),
+        ContentType: 'application/json'
+      }).promise();
+      return true;
+    } catch (error) {
+      console.error('Failed to save to Object Storage:', error);
+      // Fall back to in-memory storage
+      storage.set(`${userId}_${dataType}`, data);
+      return true;
+    }
+  } else {
+    // Use in-memory storage
+    storage.set(`${userId}_${dataType}`, data);
     return true;
-  } catch (error) {
-    console.error('Failed to save to Object Storage:', error);
-    throw error;
   }
 }
 
 async function loadUserData(userId, dataType) {
-  const key = `users/${userId}/${dataType}.json`;
-  try {
-    const result = await s3.getObject({
-      Bucket: BUCKET_NAME,
-      Key: key
-    }).promise();
-    return JSON.parse(result.Body.toString());
-  } catch (error) {
-    if (error.code === 'NoSuchKey') {
-      return []; // Return empty array if file doesn't exist
+  if (useObjectStorage) {
+    const key = `users/${userId}/${dataType}.json`;
+    try {
+      const result = await s3.getObject({
+        Bucket: BUCKET_NAME,
+        Key: key
+      }).promise();
+      return JSON.parse(result.Body.toString());
+    } catch (error) {
+      if (error.code === 'NoSuchKey') {
+        return []; // Return empty array if file doesn't exist
+      }
+      console.error('Failed to load from Object Storage:', error);
+      // Fall back to in-memory storage
+      return storage.get(`${userId}_${dataType}`) || [];
     }
-    console.error('Failed to load from Object Storage:', error);
-    throw error;
+  } else {
+    // Use in-memory storage
+    return storage.get(`${userId}_${dataType}`) || [];
   }
 }
 

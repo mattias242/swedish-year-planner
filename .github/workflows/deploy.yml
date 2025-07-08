@@ -87,11 +87,18 @@ jobs:
         zip -r function.zip . -x node_modules/\* .git/\* \*.zip
         ls -la function.zip
     
-    - name: Deploy function
+    - name: Deploy function with environment variables
       run: |
         cd functions
         scw function deploy namespace-id=$NAMESPACE_ID name=api runtime=node20 zip-file=function.zip
-        echo "Function deployed successfully"
+        
+        # Set environment variables for the function to enable Object Storage
+        scw function function update \
+          function-id=$(scw function function list namespace-id=$NAMESPACE_ID name=api -o json | jq -r '.[0].id') \
+          environment-variables="{\"SCW_ACCESS_KEY\":\"$SCW_ACCESS_KEY\",\"SCW_SECRET_KEY\":\"$SCW_SECRET_KEY\",\"BUCKET_NAME\":\"$BUCKET_NAME\"}" \
+          region=$SCW_DEFAULT_REGION
+        
+        echo "Function deployed with Object Storage configuration"
 
   deploy-static:
     runs-on: ubuntu-latest

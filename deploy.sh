@@ -3,6 +3,12 @@
 # Swedish Year Planner - Scaleway Deployment Script
 set -e
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+    echo "Loading configuration from .env file..."
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -10,10 +16,17 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-ENVIRONMENT=${1:-prod}
-REGION=${2:-fr-par}
+# Configuration (can be overridden by .env file)
+ENVIRONMENT=${ENVIRONMENT:-${1:-prod}}
+REGION=${REGION:-${2:-fr-par}}
 PROJECT_NAME="swedish-year-planner"
+
+# Use environment variables from .env if available
+SCW_ACCESS_KEY=${SCW_ACCESS_KEY:-""}
+SCW_SECRET_KEY=${SCW_SECRET_KEY:-""}
+BUCKET_NAME=${BUCKET_NAME:-"${PROJECT_NAME}-${ENVIRONMENT}"}
+NAMESPACE_ID=${NAMESPACE_ID:-""}
+FUNCTION_ID=${FUNCTION_ID:-""}
 
 echo -e "${BLUE}🇸🇪 Swedish Year Planner - Scaleway Deployment${NC}"
 echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
