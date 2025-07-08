@@ -4,13 +4,22 @@ class YearPlanner {
         this.tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
         this.currentEditingEvent = null;
         this.currentEditingTask = null;
+        this.userId = this.getUserId();
+        this.cloudSyncEnabled = window.APP_CONFIG?.ENABLE_CLOUD_STORAGE || false;
+        this.lastSyncTime = localStorage.getItem('lastSyncTime') || null;
         this.init();
     }
 
-    init() {
+    async init() {
         this.updateCurrentDate();
         this.applySeason();
         this.setupEventListeners();
+        
+        // Load data from cloud if enabled
+        if (this.cloudSyncEnabled) {
+            await this.loadFromCloud();
+        }
+        
         this.renderTimeline();
         this.renderUnfinishedTasks();
         this.renderFutureOverview();
@@ -954,6 +963,148 @@ class YearPlanner {
     saveToStorage() {
         localStorage.setItem('events', JSON.stringify(this.events));
         localStorage.setItem('tasks', JSON.stringify(this.tasks));
+        
+        // Auto-sync to cloud if enabled
+        if (this.cloudSyncEnabled) {
+            this.saveToCloud();
+        }
+    }
+
+    getUserId() {
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+            userId = 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+            localStorage.setItem('userId', userId);
+        }
+        return userId;
+    }
+
+    async loadFromCloud() {
+        if (!window.APP_CONFIG?.API_BASE_URL) {
+            console.log('Molnlagring ej tillgänglig: API URL saknas');
+            return;
+        }
+
+        try {
+            const [eventsResponse, tasksResponse] = await Promise.all([
+                fetch(`${window.APP_CONFIG.API_BASE_URL}/api/events`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': this.userId
+                    }
+                }),
+                fetch(`${window.APP_CONFIG.API_BASE_URL}/api/tasks`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': this.userId
+                    }
+                })
+            ]);
+
+            if (eventsResponse.ok && tasksResponse.ok) {
+                const cloudEvents = await eventsResponse.json();
+                const cloudTasks = await tasksResponse.json();
+                
+                // Only update if cloud has data
+                if (cloudEvents.length > 0 || cloudTasks.length > 0) {
+                    this.events = cloudEvents;
+                    this.tasks = cloudTasks;
+                    
+                    // Update local storage
+                    localStorage.setItem('events', JSON.stringify(this.events));
+                    localStorage.setItem('tasks', JSON.stringify(this.tasks));
+                    localStorage.setItem('lastSyncTime', new Date().toISOString());
+                    
+                    console.log('Data laddad från molnet');
+                }
+            }
+        } catch (error) {
+            console.error('Kunde inte ladda från molnet:', error);
+            // Continue with local data on error
+        }
+    }
+
+    async saveToCloud() {
+        if (!window.APP_CONFIG?.API_BASE_URL) {
+            return;
+        }
+
+        try {
+            const [eventsResponse, tasksResponse] = await Promise.all([
+                fetch(`${window.APP_CONFIG.API_BASE_URL}/api/events`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': this.userId
+                    },
+                    body: JSON.stringify(this.events)
+                }),
+                fetch(`${window.APP_CONFIG.API_BASE_URL}/api/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': this.userId
+                    },
+                    body: JSON.stringify(this.tasks)
+                })
+            ]);
+
+            if (eventsResponse.ok && tasksResponse.ok) {
+                localStorage.setItem('lastSyncTime', new Date().toISOString());
+                console.log('Data sparad i molnet');
+            } else {
+                console.error('Kunde inte spara till molnet');
+            }
+        } catch (error) {
+            console.error('Fel vid sparning till molnet:', error);
+            // Data is still saved locally, so continue
+        }
+    }
+
+    async exportBackup() {
+        if (!window.APP_CONFIG?.API_BASE_URL) {
+            // Fallback to local export
+            const data = {
+                version: '1.0.0',
+                exportDate: new Date().toISOString(),
+                data: {
+                    events: this.events,
+                    tasks: this.tasks
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `arsplanerare-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/backup`, {
+                method: 'GET',
+                headers: {
+                    'X-User-ID': this.userId
+                }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `arsplanerare-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error('Kunde inte exportera backup:', error);
+        }
     }
 }
 

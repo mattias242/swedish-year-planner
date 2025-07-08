@@ -1,8 +1,10 @@
-# Swedish Seasonal Year Planner
+# Swedish Year Planner 🇸🇪
 
-A beautiful, mobile-first web application for planning your year with Swedish seasonal themes. Perfect for managing recurring yearly events and tasks with an intuitive timeline view.
+En webbaserad, mobilanpassad årsplanerare med svenskt säsongstema och molnlagring.
 
 ![Swedish Seasonal Year Planner](https://img.shields.io/badge/Status-Ready-brightgreen)
+![Deployment](https://img.shields.io/badge/CI%2FCD-Enabled-blue)
+![Cloud Storage](https://img.shields.io/badge/Storage-Scaleway-orange)
 
 ## ✨ Features
 

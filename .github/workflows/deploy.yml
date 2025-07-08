@@ -1,0 +1,209 @@
+name: Deploy to Scaleway
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+  SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+  SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+  SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+  SCW_DEFAULT_REGION: fr-par
+  SCW_DEFAULT_ZONE: fr-par-1
+  BUCKET_NAME: swedish-year-planner-prod
+  NAMESPACE_ID: 252e6879-01b4-452a-83cf-95d61195ad79
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: functions/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd functions
+        npm ci
+    
+    - name: Run linting (if available)
+      run: |
+        cd functions
+        npm run lint || echo "No lint script found, skipping"
+    
+    - name: Test function syntax
+      run: |
+        cd functions
+        node -c index.js
+        echo "Syntax check passed"
+
+  deploy-function:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: functions/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd functions
+        npm ci --production
+    
+    - name: Install Scaleway CLI
+      run: |
+        curl -o scw-cli.zip -L "https://github.com/scaleway/scaleway-cli/releases/latest/download/scw-cli_${SCW_DEFAULT_REGION}_linux_amd64.zip"
+        unzip scw-cli.zip
+        sudo mv scw /usr/local/bin/
+        scw version
+    
+    - name: Configure Scaleway CLI
+      run: |
+        mkdir -p ~/.config/scw
+        cat > ~/.config/scw/config.yaml << EOF
+        access_key: $SCW_ACCESS_KEY
+        secret_key: $SCW_SECRET_KEY
+        default_organization_id: $SCW_DEFAULT_ORGANIZATION_ID
+        default_project_id: $SCW_DEFAULT_PROJECT_ID
+        default_region: $SCW_DEFAULT_REGION
+        default_zone: $SCW_DEFAULT_ZONE
+        EOF
+    
+    - name: Create deployment package
+      run: |
+        cd functions
+        zip -r function.zip . -x node_modules/\* .git/\* \*.zip
+        ls -la function.zip
+    
+    - name: Deploy function
+      run: |
+        cd functions
+        scw function deploy namespace-id=$NAMESPACE_ID name=api runtime=node20 zip-file=function.zip
+        echo "Function deployed successfully"
+
+  deploy-static:
+    runs-on: ubuntu-latest
+    needs: [test, deploy-function]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install AWS CLI
+      run: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        aws --version
+    
+    - name: Configure AWS CLI for Scaleway
+      run: |
+        mkdir -p ~/.aws
+        cat > ~/.aws/credentials << EOF
+        [default]
+        aws_access_key_id = $SCW_ACCESS_KEY
+        aws_secret_access_key = $SCW_SECRET_KEY
+        EOF
+        cat > ~/.aws/config << EOF
+        [default]
+        region = $SCW_DEFAULT_REGION
+        EOF
+    
+    - name: Deploy static files
+      run: |
+        aws s3 sync . s3://$BUCKET_NAME/ \
+          --endpoint-url=https://s3.$SCW_DEFAULT_REGION.scw.cloud \
+          --exclude ".git/*" \
+          --exclude ".github/*" \
+          --exclude "functions/*" \
+          --exclude "terraform/*" \
+          --exclude "node_modules/*" \
+          --exclude "*.md" \
+          --exclude "docker-compose.yml" \
+          --exclude "Dockerfile" \
+          --exclude "nginx.conf" \
+          --exclude "package*.json" \
+          --exclude "deploy.sh" \
+          --exclude "AWSCLIV2.pkg"
+        echo "Static files deployed successfully"
+    
+    - name: Update deployment info
+      run: |
+        cat > deployment-info.json << EOF
+        {
+          "environment": "prod",
+          "region": "$SCW_DEFAULT_REGION",
+          "project_id": "$SCW_DEFAULT_PROJECT_ID",
+          "website_url": "https://$BUCKET_NAME.s3-website.$SCW_DEFAULT_REGION.scw.cloud",
+          "api_url": "https://swedishyearplannerprqh0wtgg3-api.functions.fnc.$SCW_DEFAULT_REGION.scw.cloud",
+          "bucket_name": "$BUCKET_NAME",
+          "namespace_id": "$NAMESPACE_ID",
+          "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "status": "✅ DEPLOYED VIA CI/CD",
+          "git_commit": "$GITHUB_SHA",
+          "git_ref": "$GITHUB_REF"
+        }
+        EOF
+        
+        aws s3 cp deployment-info.json s3://$BUCKET_NAME/ \
+          --endpoint-url=https://s3.$SCW_DEFAULT_REGION.scw.cloud
+        
+        echo "Deployment info updated"
+
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [deploy-function, deploy-static]
+    steps:
+    - name: Test API health
+      run: |
+        echo "Testing API health..."
+        response=$(curl -s -w "%{http_code}" "https://swedishyearplannerprqh0wtgg3-api.functions.fnc.fr-par.scw.cloud/api/health")
+        http_code="${response: -3}"
+        
+        if [ "$http_code" = "200" ]; then
+          echo "✅ API health check passed"
+        else
+          echo "❌ API health check failed with status $http_code"
+          exit 1
+        fi
+    
+    - name: Test static website
+      run: |
+        echo "Testing static website..."
+        response=$(curl -s -w "%{http_code}" "https://swedish-year-planner-prod.s3-website.fr-par.scw.cloud")
+        http_code="${response: -3}"
+        
+        if [ "$http_code" = "200" ]; then
+          echo "✅ Static website health check passed"
+        else
+          echo "❌ Static website health check failed with status $http_code"
+          exit 1
+        fi
+        
+        echo "🎉 Deployment completed successfully!"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [health-check]
+    if: always()
+    steps:
+    - name: Deployment notification
+      run: |
+        if [ "${{ needs.health-check.result }}" = "success" ]; then
+          echo "🎉 Swedish Year Planner deployed successfully!"
+          echo "🌐 Website: https://swedish-year-planner-prod.s3-website.fr-par.scw.cloud"
+          echo "🔗 API: https://swedishyearplannerprqh0wtgg3-api.functions.fnc.fr-par.scw.cloud"
+        else
+          echo "❌ Deployment failed. Check the logs above."
+          exit 1
+        fi

@@ -4,6 +4,18 @@
  */
 
 const cors = require('cors');
+const AWS = require('aws-sdk');
+
+// Configure AWS SDK for Scaleway Object Storage
+const s3 = new AWS.S3({
+  endpoint: 'https://s3.fr-par.scw.cloud',
+  region: 'fr-par',
+  accessKeyId: process.env.SCW_ACCESS_KEY,
+  secretAccessKey: process.env.SCW_SECRET_KEY,
+  s3ForcePathStyle: true
+});
+
+const BUCKET_NAME = process.env.BUCKET_NAME || 'swedish-year-planner-prod';
 
 // CORS configuration for frontend
 const corsOptions = {
@@ -18,8 +30,39 @@ const corsOptions = {
   credentials: true
 };
 
-// Simple in-memory storage (replace with Scaleway Database or Redis in production)
-const storage = new Map();
+// Scaleway Object Storage helper functions
+async function saveUserData(userId, dataType, data) {
+  const key = `users/${userId}/${dataType}.json`;
+  try {
+    await s3.putObject({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: JSON.stringify(data),
+      ContentType: 'application/json'
+    }).promise();
+    return true;
+  } catch (error) {
+    console.error('Failed to save to Object Storage:', error);
+    throw error;
+  }
+}
+
+async function loadUserData(userId, dataType) {
+  const key = `users/${userId}/${dataType}.json`;
+  try {
+    const result = await s3.getObject({
+      Bucket: BUCKET_NAME,
+      Key: key
+    }).promise();
+    return JSON.parse(result.Body.toString());
+  } catch (error) {
+    if (error.code === 'NoSuchKey') {
+      return []; // Return empty array if file doesn't exist
+    }
+    console.error('Failed to load from Object Storage:', error);
+    throw error;
+  }
+}
 
 /**
  * Main handler function for Scaleway Serverless Functions
@@ -112,23 +155,36 @@ function handleHealth() {
  */
 async function handleEvents(method, body, query, headers) {
   const userId = headers['x-user-id'] || 'anonymous';
-  const userKey = `events_${userId}`;
 
   switch (method) {
     case 'GET':
-      const events = storage.get(userKey) || [];
-      return {
-        statusCode: 200,
-        body: JSON.stringify(events)
-      };
+      try {
+        const events = await loadUserData(userId, 'events');
+        return {
+          statusCode: 200,
+          body: JSON.stringify(events)
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to load events' })
+        };
+      }
 
     case 'POST':
-      const newEvents = JSON.parse(body || '[]');
-      storage.set(userKey, newEvents);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, count: newEvents.length })
-      };
+      try {
+        const newEvents = JSON.parse(body || '[]');
+        await saveUserData(userId, 'events', newEvents);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, count: newEvents.length })
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to save events' })
+        };
+      }
 
     default:
       return {
@@ -143,23 +199,36 @@ async function handleEvents(method, body, query, headers) {
  */
 async function handleTasks(method, body, query, headers) {
   const userId = headers['x-user-id'] || 'anonymous';
-  const userKey = `tasks_${userId}`;
 
   switch (method) {
     case 'GET':
-      const tasks = storage.get(userKey) || [];
-      return {
-        statusCode: 200,
-        body: JSON.stringify(tasks)
-      };
+      try {
+        const tasks = await loadUserData(userId, 'tasks');
+        return {
+          statusCode: 200,
+          body: JSON.stringify(tasks)
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to load tasks' })
+        };
+      }
 
     case 'POST':
-      const newTasks = JSON.parse(body || '[]');
-      storage.set(userKey, newTasks);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, count: newTasks.length })
-      };
+      try {
+        const newTasks = JSON.parse(body || '[]');
+        await saveUserData(userId, 'tasks', newTasks);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, count: newTasks.length })
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to save tasks' })
+        };
+      }
 
     default:
       return {
@@ -181,22 +250,30 @@ async function handleAnalytics(method, query, headers) {
   }
 
   const userId = headers['x-user-id'] || 'anonymous';
-  const events = storage.get(`events_${userId}`) || [];
-  const tasks = storage.get(`tasks_${userId}`) || [];
+  
+  try {
+    const events = await loadUserData(userId, 'events');
+    const tasks = await loadUserData(userId, 'tasks');
 
-  const analytics = {
-    totalEvents: events.length,
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter(task => isTaskCompleted(task)).length,
-    recurringEvents: events.filter(event => event.recurring !== false).length,
-    recurringTasks: tasks.filter(task => task.recurring !== false).length,
-    lastUpdated: new Date().toISOString()
-  };
+    const analytics = {
+      totalEvents: events.length,
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter(task => isTaskCompleted(task)).length,
+      recurringEvents: events.filter(event => event.recurring !== false).length,
+      recurringTasks: tasks.filter(task => task.recurring !== false).length,
+      lastUpdated: new Date().toISOString()
+    };
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify(analytics)
-  };
+    return {
+      statusCode: 200,
+      body: JSON.stringify(analytics)
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Failed to load analytics data' })
+    };
+  }
 }
 
 /**
@@ -207,38 +284,52 @@ async function handleBackup(method, body, headers) {
 
   switch (method) {
     case 'GET':
-      // Export user data
-      const events = storage.get(`events_${userId}`) || [];
-      const tasks = storage.get(`tasks_${userId}`) || [];
-      
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          version: '1.0.0',
-          exportDate: new Date().toISOString(),
-          data: { events, tasks }
-        }),
-        headers: {
-          'Content-Disposition': `attachment; filename="year-planner-backup-${new Date().toISOString().split('T')[0]}.json"`
-        }
-      };
+      try {
+        // Export user data
+        const events = await loadUserData(userId, 'events');
+        const tasks = await loadUserData(userId, 'tasks');
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            version: '1.0.0',
+            exportDate: new Date().toISOString(),
+            data: { events, tasks }
+          }),
+          headers: {
+            'Content-Disposition': `attachment; filename="year-planner-backup-${new Date().toISOString().split('T')[0]}.json"`
+          }
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to export data' })
+        };
+      }
 
     case 'POST':
-      // Import user data
-      const backupData = JSON.parse(body);
-      if (backupData.data) {
-        if (backupData.data.events) {
-          storage.set(`events_${userId}`, backupData.data.events);
+      try {
+        // Import user data
+        const backupData = JSON.parse(body);
+        if (backupData.data) {
+          if (backupData.data.events) {
+            await saveUserData(userId, 'events', backupData.data.events);
+          }
+          if (backupData.data.tasks) {
+            await saveUserData(userId, 'tasks', backupData.data.tasks);
+          }
         }
-        if (backupData.data.tasks) {
-          storage.set(`tasks_${userId}`, backupData.data.tasks);
-        }
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, importDate: new Date().toISOString() })
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Failed to import data' })
+        };
       }
-      
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, importDate: new Date().toISOString() })
-      };
 
     default:
       return {
