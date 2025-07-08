@@ -31,16 +31,35 @@ The app automatically adapts to Swedish meteorological seasons:
 
 ## 🚀 Getting Started
 
-### Installation
+### Local Development
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/swedish-year-planner.git
+   git clone https://github.com/mattias242/swedish-year-planner.git
    cd swedish-year-planner
    ```
 
-2. Open `index.html` in your web browser
+2. Start local development server:
+   ```bash
+   npm run dev
+   # Or simply open index.html in your browser
+   ```
 
-That's it! No build process or dependencies required.
+### Deploy to Scaleway
+For production deployment with serverless functions and object storage:
+
+1. **Install prerequisites**: Terraform, AWS CLI, Node.js 18+
+2. **Setup Scaleway credentials**:
+   ```bash
+   export SCW_ACCESS_KEY="your-access-key"
+   export SCW_SECRET_KEY="your-secret-key"
+   export SCW_DEFAULT_PROJECT_ID="your-project-id"
+   ```
+3. **Deploy**:
+   ```bash
+   ./deploy.sh prod
+   ```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
 ### Usage
 
@@ -101,14 +120,35 @@ All data is stored locally in your browser using localStorage:
 - **Modern ES6+** - Clean, maintainable code
 - **CSS Grid & Flexbox** - Modern layout techniques
 
+## ☁️ Cloud Deployment
+
+This app is ready for cloud deployment on Scaleway with:
+
+- **Object Storage**: Static website hosting with CDN
+- **Serverless Functions**: API backend with automatic scaling  
+- **Data Persistence**: User data sync across devices
+- **Backup System**: Automatic data backup and export
+- **Analytics**: Usage tracking and insights
+
+### Deployment Options
+
+| Environment | Use Case | URL Pattern |
+|-------------|----------|-------------|
+| **Local** | Development | `localhost:8080` |
+| **Staging** | Testing | `app-staging.scw.cloud` |
+| **Production** | Live app | `app-prod.scw.cloud` |
+
 ## 🔮 Future Enhancements
 
-- [ ] Data export/import functionality
+- [x] Data export/import functionality ✅
+- [x] Cloud deployment with Scaleway ✅
+- [x] API backend with serverless functions ✅
 - [ ] Calendar integration
-- [ ] Notification system
+- [ ] Push notifications
 - [ ] Dark mode toggle
 - [ ] Custom seasonal themes
 - [ ] Multi-language support
+- [ ] Mobile app (PWA)
 
 ## 🤝 Contributing
 

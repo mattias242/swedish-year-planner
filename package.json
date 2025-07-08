@@ -1,0 +1,39 @@
+{
+  "name": "swedish-year-planner",
+  "version": "1.0.0",
+  "description": "A beautiful mobile-first year planner with Swedish seasonal themes",
+  "scripts": {
+    "dev": "python3 -m http.server 8080 || python -m SimpleHTTPServer 8080",
+    "deploy": "./deploy.sh prod",
+    "deploy:staging": "./deploy.sh staging",
+    "build": "echo 'No build step required for vanilla JS app'",
+    "test": "echo 'No tests configured yet'",
+    "lint": "echo 'No linting configured yet'",
+    "clean": "rm -rf functions/node_modules functions/function.zip terraform/.terraform terraform/terraform.tfstate*"
+  },
+  "keywords": [
+    "year-planner",
+    "swedish",
+    "seasonal",
+    "mobile-first",
+    "scaleway",
+    "serverless"
+  ],
+  "author": "Swedish Year Planner Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mattias242/swedish-year-planner.git"
+  },
+  "homepage": "https://github.com/mattias242/swedish-year-planner#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {},
+  "dependencies": {},
+  "scaleway": {
+    "region": "fr-par",
+    "zone": "fr-par-1",
+    "runtime": "node18"
+  }
+}

@@ -1,0 +1,15 @@
+# Scaleway Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+# Scaleway region and zone
+region = "fr-par"
+zone   = "fr-par-1"
+
+# Project configuration
+project_name = "swedish-year-planner"
+environment  = "prod"
+
+# You'll also need to set these environment variables:
+# export SCW_ACCESS_KEY="your-access-key"
+# export SCW_SECRET_KEY="your-secret-key"
+# export SCW_DEFAULT_PROJECT_ID="your-project-id"

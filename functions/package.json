@@ -1,0 +1,26 @@
+{
+  "name": "swedish-year-planner-functions",
+  "version": "1.0.0",
+  "description": "Serverless functions for Swedish Year Planner",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node index.js",
+    "deploy": "zip -r function.zip . -x node_modules/\\* .git/\\* \\*.zip"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "serverless",
+    "scaleway",
+    "year-planner",
+    "functions"
+  ],
+  "author": "Swedish Year Planner",
+  "license": "MIT"
+}

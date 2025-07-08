@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Local development server
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+
+  # Local API development (optional)
+  api:
+    build:
+      context: ./functions
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./functions:/app
+      - /app/node_modules

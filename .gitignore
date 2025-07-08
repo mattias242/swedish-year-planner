@@ -46,3 +46,26 @@ node_modules/
 
 # Claude Code specific
 .claude/
+
+# Deployment and infrastructure
+terraform/.terraform/
+terraform/terraform.tfstate*
+terraform/.terraform.lock.hcl
+functions/function.zip
+functions/node_modules/
+
+# Environment files
+.env
+terraform/terraform.tfvars
+
+# Build artifacts
+dist/
+build/
+
+# AWS/Scaleway CLI
+.aws/
+.scw/
+
+# Temporary files
+*.tmp
+*.bak
