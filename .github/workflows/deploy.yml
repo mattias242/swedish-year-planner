@@ -68,15 +68,16 @@ jobs:
       uses: scaleway/action-scw@v0
       with:
         version: "latest"
-        access-key: ${{ env.SCW_ACCESS_KEY }}
-        secret-key: ${{ env.SCW_SECRET_KEY }}
-        default-project-id: ${{ env.SCW_DEFAULT_PROJECT_ID }}
-        default-organization-id: ${{ env.SCW_DEFAULT_ORGANIZATION_ID }}
+        access-key: ${{ secrets.SCW_ACCESS_KEY }}
+        secret-key: ${{ secrets.SCW_SECRET_KEY }}
+        default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+        default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
     
     - name: Verify Scaleway CLI
       run: |
         scw version
-        scw config get
+        scw config get access-key || echo "Access key not configured"
+        scw config get default-project-id || echo "Project ID not configured"
     
     - name: Create deployment package
       run: |
