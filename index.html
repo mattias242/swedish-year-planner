@@ -1,66 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Year Planner</title>
+    <title>Årsplanerare</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app-container">
         <header class="header">
-            <h1 class="app-title">Year Planner</h1>
+            <h1 class="app-title">Årsplanerare</h1>
             <div class="current-date" id="currentDate"></div>
         </header>
 
         <nav class="nav-tabs">
-            <button class="tab-btn active" data-tab="home">Home</button>
-            <button class="tab-btn" data-tab="events">Events</button>
-            <button class="tab-btn" data-tab="tasks">Tasks</button>
-            <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn active" data-tab="home">Hem</button>
+            <button class="tab-btn" data-tab="events">Händelser</button>
+            <button class="tab-btn" data-tab="tasks">Uppgifter</button>
+            <button class="tab-btn" data-tab="dashboard">Översikt</button>
         </nav>
 
         <main class="main-content">
             <div class="tab-content active" id="home">
                 <div class="timeline-section">
-                    <h2>Next 30 Days</h2>
+                    <h2>Kommande 30 dagar</h2>
                     <div class="timeline" id="timeline"></div>
                 </div>
                 <div class="unfinished-tasks">
-                    <h2>Unfinished Tasks</h2>
+                    <h2>Oavslutade uppgifter</h2>
                     <div class="task-list" id="unfinishedTasks"></div>
                 </div>
                 <div class="future-overview">
-                    <h2>Future Overview</h2>
+                    <h2>Framtidsöversikt</h2>
                     <div class="future-timeline" id="futureTimeline"></div>
                 </div>
             </div>
 
             <div class="tab-content" id="events">
                 <div class="section-header">
-                    <h2>Events</h2>
-                    <button class="add-btn" id="addEvent">+ Add Event</button>
+                    <h2>Händelser</h2>
+                    <button class="add-btn" id="addEvent">+ Lägg till händelse</button>
                 </div>
                 <div class="event-list" id="eventList"></div>
             </div>
 
             <div class="tab-content" id="tasks">
                 <div class="section-header">
-                    <h2>Tasks</h2>
-                    <button class="add-btn" id="addTask">+ Add Task</button>
+                    <h2>Uppgifter</h2>
+                    <button class="add-btn" id="addTask">+ Lägg till uppgift</button>
                 </div>
                 <div class="task-list" id="taskList"></div>
             </div>
 
             <div class="tab-content" id="dashboard">
-                <h2>Progress Dashboard</h2>
+                <h2>Framstegsöversikt</h2>
                 <div class="dashboard-grid">
                     <div class="progress-card">
-                        <h3>Previous Month</h3>
+                        <h3>Föregående månad</h3>
                         <div class="progress-chart" id="prevMonthChart"></div>
                     </div>
                     <div class="progress-card">
-                        <h3>Current Month</h3>
+                        <h3>Denna månad</h3>
                         <div class="progress-chart" id="currentMonthChart"></div>
                     </div>
                 </div>
@@ -70,24 +70,24 @@
         <div class="modal" id="eventModal">
             <div class="modal-content">
                 <span class="close" id="closeEventModal">&times;</span>
-                <h3 id="eventModalTitle">Add Event</h3>
+                <h3 id="eventModalTitle">Lägg till händelse</h3>
                 <form id="eventForm">
-                    <input type="text" id="eventTitle" placeholder="Event title" required>
+                    <input type="text" id="eventTitle" placeholder="Händelsetitel" required>
                     <div class="date-inputs">
                         <label>
-                            <input type="checkbox" id="eventRecurring" checked> Recurring yearly
+                            <input type="checkbox" id="eventRecurring" checked> Återkommande årligen
                         </label>
                         <div class="date-range">
                             <input type="text" id="eventStartDate" placeholder="Start (MM-DD)" required>
-                            <input type="text" id="eventEndDate" placeholder="End (MM-DD)">
+                            <input type="text" id="eventEndDate" placeholder="Slut (MM-DD)">
                         </div>
                         <div class="full-date-range" style="display: none;">
                             <input type="date" id="eventFullStartDate">
                             <input type="date" id="eventFullEndDate">
                         </div>
                     </div>
-                    <textarea id="eventDescription" placeholder="Description (optional)"></textarea>
-                    <button type="submit">Save Event</button>
+                    <textarea id="eventDescription" placeholder="Beskrivning (valfritt)"></textarea>
+                    <button type="submit">Spara händelse</button>
                 </form>
             </div>
         </div>
@@ -95,27 +95,27 @@
         <div class="modal" id="taskModal">
             <div class="modal-content">
                 <span class="close" id="closeTaskModal">&times;</span>
-                <h3 id="taskModalTitle">Add Task</h3>
+                <h3 id="taskModalTitle">Lägg till uppgift</h3>
                 <form id="taskForm">
-                    <input type="text" id="taskTitle" placeholder="Task title" required>
+                    <input type="text" id="taskTitle" placeholder="Uppgiftstitel" required>
                     <div class="date-inputs">
                         <label>
-                            <input type="checkbox" id="taskRecurring" checked> Recurring yearly
+                            <input type="checkbox" id="taskRecurring" checked> Återkommande årligen
                         </label>
                         <div class="date-range">
-                            <input type="text" id="taskDueDate" placeholder="Due date (MM-DD)" required>
+                            <input type="text" id="taskDueDate" placeholder="Förfallodatum (MM-DD)" required>
                         </div>
                         <div class="full-date-range" style="display: none;">
                             <input type="date" id="taskFullDueDate">
                         </div>
                     </div>
-                    <textarea id="taskDescription" placeholder="Description (optional)"></textarea>
+                    <textarea id="taskDescription" placeholder="Beskrivning (valfritt)"></textarea>
                     <div class="subtasks-section">
-                        <h4>Subtasks</h4>
+                        <h4>Deluppgifter</h4>
                         <div id="subtaskList"></div>
-                        <button type="button" id="addSubtask">+ Add Subtask</button>
+                        <button type="button" id="addSubtask">+ Lägg till deluppgift</button>
                     </div>
-                    <button type="submit">Save Task</button>
+                    <button type="submit">Spara uppgift</button>
                 </form>
             </div>
         </div>
@@ -126,11 +126,11 @@
                 <h3 id="futureSummaryTitle"></h3>
                 <div id="futureSummaryContent">
                     <div class="summary-section">
-                        <h4>Events</h4>
+                        <h4>Händelser</h4>
                         <div id="futureEventsList"></div>
                     </div>
                     <div class="summary-section">
-                        <h4>Tasks</h4>
+                        <h4>Uppgifter</h4>
                         <div id="futureTasksList"></div>
                     </div>
                 </div>

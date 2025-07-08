@@ -27,7 +27,7 @@ class YearPlanner {
             month: 'long', 
             day: 'numeric' 
         };
-        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('sv-SE', options);
     }
 
     getCurrentSeason() {
@@ -157,7 +157,7 @@ class YearPlanner {
 
             return `
                 <div class="timeline-day">
-                    <div class="timeline-date">${day.isOngoing ? 'Ongoing' : this.formatTimelineDate(day.date)}</div>
+                    <div class="timeline-date">${day.isOngoing ? 'Pågående' : this.formatTimelineDate(day.date)}</div>
                     <div class="timeline-events">
                         ${day.events.map(event => `
                             <div class="timeline-event" style="background: #e3f2fd;">
@@ -195,7 +195,7 @@ class YearPlanner {
                             <div class="progress-bar">
                                 <div class="progress-fill" style="width: ${progress}%"></div>
                             </div>
-                            <small>${completedSubtasks}/${totalSubtasks} subtasks completed</small>
+                            <small>${completedSubtasks}/${totalSubtasks} deluppgifter slutförda</small>
                         </div>
                     ` : ''}
                 </div>
@@ -219,7 +219,7 @@ class YearPlanner {
                     type: 'month',
                     date: month,
                     count: total,
-                    title: month.toLocaleDateString('en-US', { month: 'long' })
+                    title: month.toLocaleDateString('sv-SE', { month: 'long' })
                 });
             }
         }
@@ -230,13 +230,13 @@ class YearPlanner {
             ...futureItems.map(item => `
                 <div class="future-month" onclick="planner.showFutureSummary('month', '${item.date.getFullYear()}-${item.date.getMonth()}', '${item.title}')">
                     <h4>${item.title}</h4>
-                    <div class="future-count">${item.count} item${item.count !== 1 ? 's' : ''}</div>
+                    <div class="future-count">${item.count} ${item.count !== 1 ? 'objekt' : 'objekt'}</div>
                 </div>
             `),
             ...quarters.map(quarter => `
                 <div class="future-quarter" onclick="planner.showFutureSummary('quarter', '${quarter.year}-${quarter.quarter}', '${quarter.title}')">
                     <h4>${quarter.title}</h4>
-                    <div class="future-count">${quarter.count} item${quarter.count !== 1 ? 's' : ''}</div>
+                    <div class="future-count">${quarter.count} ${quarter.count !== 1 ? 'objekt' : 'objekt'}</div>
                 </div>
             `)
         ].join('');
@@ -329,9 +329,9 @@ class YearPlanner {
                 
                 if (event.endDate && !(eventStart.month === eventEnd.month && eventStart.day === eventEnd.day)) {
                     if (eventStart.month === currentMonthDay.month && eventStart.day === currentMonthDay.day) {
-                        marker = 'Start';
+                        marker = 'Början';
                     } else if (eventEnd.month === currentMonthDay.month && eventEnd.day === currentMonthDay.day) {
-                        marker = 'End';
+                        marker = 'Slut';
                     }
                 }
             } else {
@@ -340,9 +340,9 @@ class YearPlanner {
                 
                 if (event.endDate && !this.isSameDay(eventStartDate, eventEndDate)) {
                     if (this.isSameDay(date, eventStartDate)) {
-                        marker = 'Start';
+                        marker = 'Början';
                     } else if (this.isSameDay(date, eventEndDate)) {
-                        marker = 'End';
+                        marker = 'Slut';
                     }
                 }
             }
@@ -395,7 +395,7 @@ class YearPlanner {
                 if (isOngoing) {
                     ongoingEvents.push({
                         ...event,
-                        marker: startDate ? `(${this.formatShortDate(startDate)}) Ongoing` : 'Ongoing'
+                        marker: startDate ? `(${this.formatShortDate(startDate)}) Pågående` : 'Pågående'
                     });
                 }
             }
@@ -405,7 +405,7 @@ class YearPlanner {
     }
 
     formatShortDate(date) {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
     }
 
     getTasksForDate(date) {
@@ -481,20 +481,20 @@ class YearPlanner {
         tomorrow.setDate(today.getDate() + 1);
 
         if (this.isSameDay(date, today)) {
-            return 'Today';
+            return 'Idag';
         } else if (this.isSameDay(date, tomorrow)) {
-            return 'Tomorrow';
+            return 'Imorgon';
         } else {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
         }
     }
 
     formatTaskDate(task) {
         if (task.recurring) {
             const parsed = this.parseMonthDay(task.dueDate);
-            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return `${monthNames[parsed.month]} ${parsed.day} (yearly)`;
+            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+            return `${monthNames[parsed.month]} ${parsed.day} (årligen)`;
         } else {
             return this.formatDate(task.dueDate);
         }
@@ -522,8 +522,8 @@ class YearPlanner {
                 <div class="event-date">${this.formatEventDate(event)}</div>
                 ${event.description ? `<div class="event-description">${event.description}</div>` : ''}
                 <div class="item-actions">
-                    <button class="edit-btn" onclick="planner.editEvent('${event.id}')">Edit</button>
-                    <button class="delete-btn" onclick="planner.deleteEvent('${event.id}')">Delete</button>
+                    <button class="edit-btn" onclick="planner.editEvent('${event.id}')">Redigera</button>
+                    <button class="delete-btn" onclick="planner.deleteEvent('${event.id}')">Ta bort</button>
                 </div>
             </div>
         `).join('');
@@ -532,14 +532,14 @@ class YearPlanner {
     formatEventDate(event) {
         if (event.recurring) {
             const start = this.parseMonthDay(event.startDate);
-            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
             
             if (event.endDate) {
                 const end = this.parseMonthDay(event.endDate);
-                return `${monthNames[start.month]} ${start.day} - ${monthNames[end.month]} ${end.day} (yearly)`;
+                return `${monthNames[start.month]} ${start.day} - ${monthNames[end.month]} ${end.day} (årligen)`;
             } else {
-                return `${monthNames[start.month]} ${start.day} (yearly)`;
+                return `${monthNames[start.month]} ${start.day} (årligen)`;
             }
         } else {
             return this.formatDate(event.startDate);
@@ -578,7 +578,7 @@ class YearPlanner {
                             <div class="progress-bar">
                                 <div class="progress-fill" style="width: ${progress}%"></div>
                             </div>
-                            <small>${completedSubtasks}/${totalSubtasks} subtasks completed</small>
+                            <small>${completedSubtasks}/${totalSubtasks} deluppgifter slutförda</small>
                         </div>
                         <div class="subtasks">
                             ${task.subtasks.map(subtask => `
@@ -592,8 +592,8 @@ class YearPlanner {
                     ` : ''}
                     
                     <div class="item-actions">
-                        <button class="edit-btn" onclick="planner.editTask('${task.id}')">Edit</button>
-                        <button class="delete-btn" onclick="planner.deleteTask('${task.id}')">Delete</button>
+                        <button class="edit-btn" onclick="planner.editTask('${task.id}')">Redigera</button>
+                        <button class="delete-btn" onclick="planner.deleteTask('${task.id}')">Ta bort</button>
                     </div>
                 </div>
             `;
@@ -618,13 +618,13 @@ class YearPlanner {
         const totalTasks = tasks.length;
         const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
         
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
         
         container.innerHTML = `
             <div style="text-align: center;">
                 <div style="font-size: 2rem; color: #667eea; margin-bottom: 1rem;">${percentage}%</div>
-                <div style="margin-bottom: 1rem;">${completedTasks} of ${totalTasks} tasks completed</div>
+                <div style="margin-bottom: 1rem;">${completedTasks} av ${totalTasks} uppgifter slutförda</div>
                 <div style="font-size: 0.9rem; color: #666;">${monthNames[month]} ${new Date().getFullYear()}</div>
             </div>
         `;
@@ -644,7 +644,7 @@ class YearPlanner {
         const form = document.getElementById('eventForm');
         
         if (event) {
-            title.textContent = 'Edit Event';
+            title.textContent = 'Redigera händelse';
             document.getElementById('eventTitle').value = event.title;
             document.getElementById('eventRecurring').checked = event.recurring !== false;
             
@@ -660,7 +660,7 @@ class YearPlanner {
             
             document.getElementById('eventDescription').value = event.description || '';
         } else {
-            title.textContent = 'Add Event';
+            title.textContent = 'Lägg till händelse';
             form.reset();
             document.getElementById('eventRecurring').checked = true;
             this.toggleRecurringEvent(true);
@@ -681,7 +681,7 @@ class YearPlanner {
         const form = document.getElementById('taskForm');
         
         if (task) {
-            title.textContent = 'Edit Task';
+            title.textContent = 'Redigera uppgift';
             document.getElementById('taskTitle').value = task.title;
             document.getElementById('taskRecurring').checked = task.recurring !== false;
             
@@ -696,7 +696,7 @@ class YearPlanner {
             document.getElementById('taskDescription').value = task.description || '';
             this.renderSubtaskInputs(task.subtasks || []);
         } else {
-            title.textContent = 'Add Task';
+            title.textContent = 'Lägg till uppgift';
             form.reset();
             document.getElementById('taskRecurring').checked = true;
             this.toggleRecurringTask(true);
@@ -715,8 +715,8 @@ class YearPlanner {
         const container = document.getElementById('subtaskList');
         container.innerHTML = subtasks.map((subtask, index) => `
             <div class="subtask-input">
-                <input type="text" value="${subtask.title}" placeholder="Subtask title" required>
-                <button type="button" onclick="this.parentElement.remove()">Remove</button>
+                <input type="text" value="${subtask.title}" placeholder="Deluppgiftstitel" required>
+                <button type="button" onclick="this.parentElement.remove()">Ta bort</button>
             </div>
         `).join('');
     }
@@ -726,8 +726,8 @@ class YearPlanner {
         const div = document.createElement('div');
         div.className = 'subtask-input';
         div.innerHTML = `
-            <input type="text" placeholder="Subtask title" required>
-            <button type="button" onclick="this.parentElement.remove()">Remove</button>
+            <input type="text" placeholder="Deluppgiftstitel" required>
+            <button type="button" onclick="this.parentElement.remove()">Ta bort</button>
         `;
         container.appendChild(div);
     }
@@ -829,7 +829,7 @@ class YearPlanner {
     }
 
     deleteEvent(eventId) {
-        if (confirm('Are you sure you want to delete this event?')) {
+        if (confirm('Är du säker på att du vill ta bort denna händelse?')) {
             this.events = this.events.filter(e => e.id !== eventId);
             this.saveToStorage();
             this.renderEvents();
@@ -846,7 +846,7 @@ class YearPlanner {
     }
 
     deleteTask(taskId) {
-        if (confirm('Are you sure you want to delete this task?')) {
+        if (confirm('Är du säker på att du vill ta bort denna uppgift?')) {
             this.tasks = this.tasks.filter(t => t.id !== taskId);
             this.saveToStorage();
             this.renderTasks();
@@ -873,7 +873,7 @@ class YearPlanner {
 
     formatDate(dateString) {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
+        return date.toLocaleDateString('sv-SE', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -926,7 +926,7 @@ class YearPlanner {
                 <div class="summary-item-date">${this.formatEventDate(event)}</div>
                 ${event.description ? `<div class="summary-item-description">${event.description}</div>` : ''}
             </div>
-        `).join('') : '<div class="no-items">No events scheduled</div>';
+        `).join('') : '<div class="no-items">Inga händelser planerade</div>';
         
         tasksContainer.innerHTML = tasks.length > 0 ? tasks.map(task => `
             <div class="summary-item">
@@ -938,11 +938,11 @@ class YearPlanner {
                         ${task.subtasks.slice(0, 3).map(subtask => `
                             <span class="summary-subtask">${subtask.title}</span>
                         `).join('')}
-                        ${task.subtasks.length > 3 ? `<span class="summary-more">+${task.subtasks.length - 3} more</span>` : ''}
+                        ${task.subtasks.length > 3 ? `<span class="summary-more">+${task.subtasks.length - 3} fler</span>` : ''}
                     </div>
                 ` : ''}
             </div>
-        `).join('') : '<div class="no-items">No tasks scheduled</div>';
+        `).join('') : '<div class="no-items">Inga uppgifter planerade</div>';
         
         modal.style.display = 'block';
     }

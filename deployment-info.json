@@ -7,6 +7,19 @@
   "bucket_name": "swedish-year-planner-prod",
   "namespace_id": "252e6879-01b4-452a-83cf-95d61195ad79",
   "function_id": "dc67de62-a37a-4b18-b01f-5bba61945af0",
-  "deployed_at": "2025-07-08T08:24:35Z",
-  "status": "API deployed, static files pending upload"
+  "deployed_at": "2025-07-08T08:35:00Z",
+  "status": "✅ FULLY DEPLOYED",
+  "static_files": {
+    "index.html": "✅ Uploaded",
+    "styles.css": "✅ Uploaded", 
+    "script.js": "✅ Uploaded",
+    "config.js": "✅ Uploaded",
+    "error.html": "✅ Uploaded"
+  },
+  "api_status": {
+    "health": "✅ Healthy",
+    "events": "✅ Working",
+    "tasks": "✅ Working"
+  },
+  "costs_estimate": "~€0.42/month for typical usage"
 }
