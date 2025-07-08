@@ -95,12 +95,15 @@ npm ci --omit=dev
 # Create function package with correct structure
 zip -r function.zip . -x "node_modules/.bin/*" "*.log" ".DS_Store"
 
+# Move zip to parent directory for deployment
+mv function.zip ../
+
 cd ..
 
 # Deploy function (using existing namespace and function IDs)
 if [ -n "$NAMESPACE_ID" ] && [ -n "$FUNCTION_ID" ]; then
     printf "${YELLOW}🚀 Updating existing function...${NC}\n"
-    scw function deploy namespace-id=$NAMESPACE_ID name=api runtime=node20 zip-file=functions/function.zip
+    scw function deploy namespace-id=$NAMESPACE_ID name=api runtime=node20 zip-file=function.zip
     
     # Set environment variables if we have credentials
     if [ -n "$SCW_ACCESS_KEY" ] && [ -n "$SCW_SECRET_KEY" ]; then
