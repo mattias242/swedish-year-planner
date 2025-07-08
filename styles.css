@@ -1,0 +1,656 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+    transition: all 0.5s ease;
+}
+
+/* Swedish Seasonal Themes */
+.season-spring {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(120, 179, 66, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(129, 199, 132, 0.1) 0%, transparent 50%);
+    color: #2d5016;
+}
+
+.season-spring .header {
+    background: linear-gradient(135deg, #7cb342 0%, #558b2f 100%);
+}
+
+.season-spring .timeline-event {
+    border-left: 4px solid #81c784 !important;
+}
+
+.season-spring .tab-btn.active {
+    color: #558b2f !important;
+    border-bottom-color: #558b2f !important;
+}
+
+.season-summer {
+    background: linear-gradient(135deg, #fff9c4 0%, #fffde7 100%);
+    background-image: 
+        radial-gradient(circle at 30% 40%, rgba(255, 193, 7, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(255, 183, 77, 0.1) 0%, transparent 50%);
+    color: #f57f17;
+}
+
+.season-summer .header {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8f00 100%);
+}
+
+.season-summer .timeline-event {
+    border-left: 4px solid #ffb74d !important;
+}
+
+.season-summer .tab-btn.active {
+    color: #ff8f00 !important;
+    border-bottom-color: #ff8f00 !important;
+}
+
+.season-autumn {
+    background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+    background-image: 
+        radial-gradient(circle at 25% 75%, rgba(255, 112, 67, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 75% 25%, rgba(216, 67, 21, 0.08) 0%, transparent 50%);
+    color: #8b4513;
+}
+
+.season-autumn .header {
+    background: linear-gradient(135deg, #ff7043 0%, #d84315 100%);
+}
+
+.season-autumn .timeline-event {
+    border-left: 4px solid #ff8a65 !important;
+}
+
+.season-autumn .tab-btn.active {
+    color: #d84315 !important;
+    border-bottom-color: #d84315 !important;
+}
+
+.season-winter {
+    background: linear-gradient(135deg, #e1f5fe 0%, #f3e5f5 100%);
+    background-image: 
+        radial-gradient(circle at 20% 30%, rgba(66, 165, 245, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(25, 118, 210, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 30%);
+    color: #1565c0;
+}
+
+.season-winter .header {
+    background: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%);
+}
+
+.season-winter .timeline-event {
+    border-left: 4px solid #64b5f6 !important;
+}
+
+.season-winter .tab-btn.active {
+    color: #1976d2 !important;
+    border-bottom-color: #1976d2 !important;
+}
+
+.app-container {
+    max-width: 100%;
+    margin: 0 auto;
+    background: white;
+    min-height: 100vh;
+}
+
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.app-title {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.current-date {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.nav-tabs {
+    display: flex;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.tab-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.tab-btn:hover {
+    background: #f8f9fa;
+}
+
+.main-content {
+    padding: 1rem;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.timeline-section, .unfinished-tasks, .future-overview {
+    margin-bottom: 2rem;
+}
+
+.timeline-section h2, .unfinished-tasks h2, .future-overview h2 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.timeline {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.timeline-day {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.timeline-day:last-child {
+    border-bottom: none;
+}
+
+.timeline-date {
+    min-width: 80px;
+    font-weight: 500;
+    color: #667eea;
+}
+
+.timeline-events {
+    flex: 1;
+    margin-left: 1rem;
+}
+
+.timeline-event {
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+    border-left: 4px solid #667eea;
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-event::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0.1;
+    background: inherit;
+    z-index: -1;
+}
+
+.timeline-event:last-child {
+    margin-bottom: 0;
+}
+
+.future-timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.future-month, .future-quarter {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.future-month:hover, .future-quarter:hover {
+    transform: translateY(-2px);
+}
+
+.future-month h4, .future-quarter h4 {
+    margin-bottom: 0.5rem;
+    color: #667eea;
+}
+
+.future-count {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.date-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.date-inputs label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.date-range {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.date-range input {
+    flex: 1;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.add-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+}
+
+.add-btn:hover {
+    background: #5a67d8;
+}
+
+.event-item, .task-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Seasonal card styling */
+.season-spring .event-item,
+.season-spring .task-item {
+    border-left: 4px solid #81c784;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.season-summer .event-item,
+.season-summer .task-item {
+    border-left: 4px solid #ffb74d;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.season-autumn .event-item,
+.season-autumn .task-item {
+    border-left: 4px solid #ff8a65;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.season-winter .event-item,
+.season-winter .task-item {
+    border-left: 4px solid #64b5f6;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.event-item h3, .task-item h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.event-date, .task-due {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.event-description, .task-description {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+.task-progress {
+    margin-top: 0.5rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #4caf50;
+    transition: width 0.3s ease;
+}
+
+.subtasks {
+    margin-top: 0.5rem;
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.subtask-item input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.progress-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.progress-card h3 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.progress-chart {
+    height: 200px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+}
+
+.close:hover {
+    color: #333;
+}
+
+.modal-content h3 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.modal-content input,
+.modal-content textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.modal-content button[type="submit"] {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+}
+
+.modal-content button[type="submit"]:hover {
+    background: #5a67d8;
+}
+
+.subtasks-section {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 1rem;
+}
+
+.subtasks-section h4 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.subtask-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.subtask-input input {
+    flex: 1;
+}
+
+.subtask-input button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.edit-btn, .delete-btn {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.edit-btn {
+    background: #ffc107;
+    color: #333;
+}
+
+.delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+/* Future Summary Modal Styles */
+.summary-section {
+    margin-bottom: 1.5rem;
+}
+
+.summary-section h4 {
+    margin-bottom: 0.75rem;
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.25rem;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid #667eea;
+}
+
+.summary-item-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.summary-item-date {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.summary-item-description {
+    font-size: 0.85rem;
+    color: #777;
+    margin-bottom: 0.5rem;
+    font-style: italic;
+}
+
+.summary-subtasks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.summary-subtask {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.15rem 0.4rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.summary-more {
+    background: #f0f0f0;
+    color: #666;
+    padding: 0.15rem 0.4rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.no-items {
+    color: #999;
+    text-align: center;
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Seasonal Summary Modal Themes */
+.season-spring .summary-item {
+    border-left-color: #81c784;
+}
+
+.season-spring .summary-subtask {
+    background: #e8f5e8;
+    color: #2d5016;
+}
+
+.season-summer .summary-item {
+    border-left-color: #ffb74d;
+}
+
+.season-summer .summary-subtask {
+    background: #fff9c4;
+    color: #f57f17;
+}
+
+.season-autumn .summary-item {
+    border-left-color: #ff8a65;
+}
+
+.season-autumn .summary-subtask {
+    background: #ffeaa7;
+    color: #8b4513;
+}
+
+.season-winter .summary-item {
+    border-left-color: #64b5f6;
+}
+
+.season-winter .summary-subtask {
+    background: #e1f5fe;
+    color: #1565c0;
+}
+
+@media (min-width: 768px) {
+    .app-container {
+        max-width: 768px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .modal-content {
+        width: 60%;
+    }
+}

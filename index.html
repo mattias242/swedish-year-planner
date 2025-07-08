@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Year Planner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1 class="app-title">Year Planner</h1>
+            <div class="current-date" id="currentDate"></div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="home">Home</button>
+            <button class="tab-btn" data-tab="events">Events</button>
+            <button class="tab-btn" data-tab="tasks">Tasks</button>
+            <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+        </nav>
+
+        <main class="main-content">
+            <div class="tab-content active" id="home">
+                <div class="timeline-section">
+                    <h2>Next 30 Days</h2>
+                    <div class="timeline" id="timeline"></div>
+                </div>
+                <div class="unfinished-tasks">
+                    <h2>Unfinished Tasks</h2>
+                    <div class="task-list" id="unfinishedTasks"></div>
+                </div>
+                <div class="future-overview">
+                    <h2>Future Overview</h2>
+                    <div class="future-timeline" id="futureTimeline"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="events">
+                <div class="section-header">
+                    <h2>Events</h2>
+                    <button class="add-btn" id="addEvent">+ Add Event</button>
+                </div>
+                <div class="event-list" id="eventList"></div>
+            </div>
+
+            <div class="tab-content" id="tasks">
+                <div class="section-header">
+                    <h2>Tasks</h2>
+                    <button class="add-btn" id="addTask">+ Add Task</button>
+                </div>
+                <div class="task-list" id="taskList"></div>
+            </div>
+
+            <div class="tab-content" id="dashboard">
+                <h2>Progress Dashboard</h2>
+                <div class="dashboard-grid">
+                    <div class="progress-card">
+                        <h3>Previous Month</h3>
+                        <div class="progress-chart" id="prevMonthChart"></div>
+                    </div>
+                    <div class="progress-card">
+                        <h3>Current Month</h3>
+                        <div class="progress-chart" id="currentMonthChart"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="modal" id="eventModal">
+            <div class="modal-content">
+                <span class="close" id="closeEventModal">&times;</span>
+                <h3 id="eventModalTitle">Add Event</h3>
+                <form id="eventForm">
+                    <input type="text" id="eventTitle" placeholder="Event title" required>
+                    <div class="date-inputs">
+                        <label>
+                            <input type="checkbox" id="eventRecurring" checked> Recurring yearly
+                        </label>
+                        <div class="date-range">
+                            <input type="text" id="eventStartDate" placeholder="Start (MM-DD)" required>
+                            <input type="text" id="eventEndDate" placeholder="End (MM-DD)">
+                        </div>
+                        <div class="full-date-range" style="display: none;">
+                            <input type="date" id="eventFullStartDate">
+                            <input type="date" id="eventFullEndDate">
+                        </div>
+                    </div>
+                    <textarea id="eventDescription" placeholder="Description (optional)"></textarea>
+                    <button type="submit">Save Event</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal" id="taskModal">
+            <div class="modal-content">
+                <span class="close" id="closeTaskModal">&times;</span>
+                <h3 id="taskModalTitle">Add Task</h3>
+                <form id="taskForm">
+                    <input type="text" id="taskTitle" placeholder="Task title" required>
+                    <div class="date-inputs">
+                        <label>
+                            <input type="checkbox" id="taskRecurring" checked> Recurring yearly
+                        </label>
+                        <div class="date-range">
+                            <input type="text" id="taskDueDate" placeholder="Due date (MM-DD)" required>
+                        </div>
+                        <div class="full-date-range" style="display: none;">
+                            <input type="date" id="taskFullDueDate">
+                        </div>
+                    </div>
+                    <textarea id="taskDescription" placeholder="Description (optional)"></textarea>
+                    <div class="subtasks-section">
+                        <h4>Subtasks</h4>
+                        <div id="subtaskList"></div>
+                        <button type="button" id="addSubtask">+ Add Subtask</button>
+                    </div>
+                    <button type="submit">Save Task</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal" id="futureSummaryModal">
+            <div class="modal-content">
+                <span class="close" id="closeFutureSummaryModal">&times;</span>
+                <h3 id="futureSummaryTitle"></h3>
+                <div id="futureSummaryContent">
+                    <div class="summary-section">
+                        <h4>Events</h4>
+                        <div id="futureEventsList"></div>
+                    </div>
+                    <div class="summary-section">
+                        <h4>Tasks</h4>
+                        <div id="futureTasksList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
