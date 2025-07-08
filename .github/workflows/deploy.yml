@@ -65,22 +65,18 @@ jobs:
         npm ci --production
     
     - name: Install Scaleway CLI
-      run: |
-        curl -s https://raw.githubusercontent.com/scaleway/scaleway-cli/master/scripts/get.sh | sh
-        sudo mv scw /usr/local/bin/
-        scw version
+      uses: scaleway/action-scw@v0
+      with:
+        version: "latest"
+        access-key: ${{ env.SCW_ACCESS_KEY }}
+        secret-key: ${{ env.SCW_SECRET_KEY }}
+        default-project-id: ${{ env.SCW_DEFAULT_PROJECT_ID }}
+        default-organization-id: ${{ env.SCW_DEFAULT_ORGANIZATION_ID }}
     
-    - name: Configure Scaleway CLI
+    - name: Verify Scaleway CLI
       run: |
-        mkdir -p ~/.config/scw
-        cat > ~/.config/scw/config.yaml << EOF
-        access_key: $SCW_ACCESS_KEY
-        secret_key: $SCW_SECRET_KEY
-        default_organization_id: $SCW_DEFAULT_ORGANIZATION_ID
-        default_project_id: $SCW_DEFAULT_PROJECT_ID
-        default_region: $SCW_DEFAULT_REGION
-        default_zone: $SCW_DEFAULT_ZONE
-        EOF
+        scw version
+        scw config get
     
     - name: Create deployment package
       run: |
