@@ -25,29 +25,33 @@ This guide explains how to deploy the Swedish Year Planner to Scaleway using Ser
 ### 1. Prerequisites
 
 - **Scaleway Account**: Sign up at [scaleway.com](https://www.scaleway.com)
-- **Terraform**: Install from [terraform.io](https://www.terraform.io/downloads.html)
-- **AWS CLI**: For S3 operations (install from [aws.amazon.com/cli](https://aws.amazon.com/cli/))
+- **Scaleway CLI**: Install from [github.com/scaleway/scaleway-cli](https://github.com/scaleway/scaleway-cli)
 - **Node.js 18+**: For serverless functions
+- **jq**: JSON processor (install via `brew install jq` on macOS)
 
-### 2. Setup Scaleway Credentials
+### 2. Setup Scaleway CLI
 
-Get your credentials from the Scaleway Console:
+Initialize the Scaleway CLI with your credentials:
 
 ```bash
-export SCW_ACCESS_KEY="your-access-key"
-export SCW_SECRET_KEY="your-secret-key"  
-export SCW_DEFAULT_PROJECT_ID="your-project-id"
+# Initialize Scaleway CLI (interactive setup)
+scw init
+
+# Or configure manually
+scw config set access-key="your-access-key"
+scw config set secret-key="your-secret-key"
+scw config set default-project-id="your-project-id"
+scw config set default-region="fr-par"
 ```
 
-### 3. Configure Deployment
+### 3. Verify Setup
 
 ```bash
-# Copy configuration templates
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-cp .env.example .env
+# Check Scaleway CLI configuration
+scw config list
 
-# Edit terraform/terraform.tfvars with your settings
-nano terraform/terraform.tfvars
+# Test connection
+scw config get default-project-id
 ```
 
 ### 4. Deploy

@@ -29,18 +29,27 @@ check_tool() {
 }
 
 echo -e "${YELLOW}🔧 Checking required tools...${NC}"
-check_tool "terraform"
-check_tool "aws" # For S3 operations
+check_tool "scw"
+check_tool "node"
+check_tool "npm"
+check_tool "zip"
 echo -e "${GREEN}✅ All required tools are available${NC}"
 
-# Check environment variables
-if [ -z "$SCW_ACCESS_KEY" ] || [ -z "$SCW_SECRET_KEY" ] || [ -z "$SCW_DEFAULT_PROJECT_ID" ]; then
-    echo -e "${RED}❌ Missing Scaleway credentials. Please set:${NC}"
-    echo "export SCW_ACCESS_KEY=\"your-access-key\""
-    echo "export SCW_SECRET_KEY=\"your-secret-key\""
-    echo "export SCW_DEFAULT_PROJECT_ID=\"your-project-id\""
+# Check Scaleway CLI configuration
+echo -e "${YELLOW}🔑 Checking Scaleway CLI configuration...${NC}"
+if ! scw config get default-project-id &> /dev/null; then
+    echo -e "${RED}❌ Scaleway CLI not configured. Please run:${NC}"
+    echo "scw init"
     exit 1
 fi
+
+# Get current config
+SCW_PROJECT_ID=$(scw config get default-project-id)
+SCW_REGION=$(scw config get default-region || echo $REGION)
+
+echo -e "${GREEN}✅ Scaleway CLI configured${NC}"
+echo -e "${BLUE}Project ID: ${SCW_PROJECT_ID}${NC}"
+echo -e "${BLUE}Region: ${SCW_REGION}${NC}"
 
 # Build function package
 echo -e "${YELLOW}📦 Building function package...${NC}"
@@ -49,31 +58,93 @@ npm install --production
 zip -r function.zip . -x node_modules/.bin/\* \*.log
 cd ..
 
-# Create placeholder zip for terraform
-echo -e "${YELLOW}🏗️  Creating Terraform placeholder...${NC}"
-echo "placeholder" > terraform/placeholder.zip
+# Create Object Storage buckets
+echo -e "${YELLOW}☁️  Creating Object Storage buckets...${NC}"
+BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
+BACKUP_BUCKET_NAME="${PROJECT_NAME}-backups-${ENVIRONMENT}"
 
-# Initialize and apply Terraform
-echo -e "${YELLOW}🏗️  Deploying infrastructure with Terraform...${NC}"
-cd terraform
+# Create website bucket
+scw object bucket create name=${BUCKET_NAME} region=${SCW_REGION} || echo "Bucket ${BUCKET_NAME} may already exist"
 
-if [ ! -f "terraform.tfvars" ]; then
-    echo -e "${YELLOW}⚠️  Creating terraform.tfvars from example...${NC}"
-    cp terraform.tfvars.example terraform.tfvars
-    echo -e "${YELLOW}📝 Please edit terraform.tfvars with your configuration${NC}"
+# Configure bucket for website hosting
+scw object bucket website set bucket=${BUCKET_NAME} index-document=index.html error-document=error.html region=${SCW_REGION}
+
+# Set bucket CORS for API access
+echo -e "${YELLOW}🔧 Configuring CORS for bucket...${NC}"
+cat > cors-config.json << EOF
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD", "POST", "PUT", "DELETE"],
+      "AllowedOrigins": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
+EOF
+
+scw object bucket cors set ${BUCKET_NAME} cors-config.json region=${SCW_REGION}
+rm cors-config.json
+
+# Create backup bucket
+scw object bucket create name=${BACKUP_BUCKET_NAME} region=${SCW_REGION} || echo "Backup bucket may already exist"
+
+# Create Function Namespace
+echo -e "${YELLOW}⚡ Creating Function Namespace...${NC}"
+NAMESPACE_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
+
+# Check if namespace exists
+NAMESPACE_ID=$(scw function namespace list name=${NAMESPACE_NAME} -o json | jq -r '.[0].id // empty' 2>/dev/null || echo "")
+
+if [ -z "$NAMESPACE_ID" ]; then
+    echo -e "${YELLOW}Creating new namespace: ${NAMESPACE_NAME}${NC}"
+    NAMESPACE_ID=$(scw function namespace create name=${NAMESPACE_NAME} region=${SCW_REGION} -o json | jq -r '.id')
+else
+    echo -e "${GREEN}Using existing namespace: ${NAMESPACE_NAME} (${NAMESPACE_ID})${NC}"
 fi
 
-terraform init
-terraform plan -var="environment=${ENVIRONMENT}" -var="region=${REGION}"
-terraform apply -var="environment=${ENVIRONMENT}" -var="region=${REGION}" -auto-approve
+# Create/Update Function
+echo -e "${YELLOW}🚀 Deploying serverless function...${NC}"
+FUNCTION_NAME="api"
 
-# Get outputs
-BUCKET_NAME=$(terraform output -raw bucket_name)
-API_FUNCTION_ID=$(terraform output -raw function_id)
-WEBSITE_URL=$(terraform output -raw website_url)
-API_URL=$(terraform output -raw api_url)
+# Check if function exists
+FUNCTION_ID=$(scw function function list namespace-id=${NAMESPACE_ID} name=${FUNCTION_NAME} -o json | jq -r '.[0].id // empty' 2>/dev/null || echo "")
 
-cd ..
+if [ -z "$FUNCTION_ID" ]; then
+    echo -e "${YELLOW}Creating new function: ${FUNCTION_NAME}${NC}"
+    FUNCTION_ID=$(scw function function create \
+        namespace-id=${NAMESPACE_ID} \
+        name=${FUNCTION_NAME} \
+        runtime=node18 \
+        handler=index.handler \
+        privacy=public \
+        zip-file=functions/function.zip \
+        region=${SCW_REGION} \
+        -o json | jq -r '.id')
+else
+    echo -e "${YELLOW}Updating existing function: ${FUNCTION_NAME} (${FUNCTION_ID})${NC}"
+    scw function function update \
+        function-id=${FUNCTION_ID} \
+        zip-file=functions/function.zip \
+        region=${SCW_REGION}
+fi
+
+# Wait for function to be ready
+echo -e "${YELLOW}⏳ Waiting for function to be ready...${NC}"
+while true; do
+    STATUS=$(scw function function get function-id=${FUNCTION_ID} region=${SCW_REGION} -o json | jq -r '.status')
+    if [ "$STATUS" = "ready" ]; then
+        break
+    fi
+    echo -e "${YELLOW}Function status: ${STATUS}, waiting...${NC}"
+    sleep 5
+done
+
+# Get function endpoint
+FUNCTION_ENDPOINT=$(scw function function get function-id=${FUNCTION_ID} region=${SCW_REGION} -o json | jq -r '.domain_name')
+API_URL="https://${FUNCTION_ENDPOINT}"
 
 # Update frontend configuration
 echo -e "${YELLOW}⚙️  Updating frontend configuration...${NC}"
@@ -86,205 +157,57 @@ window.APP_CONFIG = {
 };
 EOF
 
-# Update script.js to use API if available
-echo -e "${YELLOW}🔧 Updating frontend to use serverless API...${NC}"
-sed -i.bak 's/localStorage\.getItem/this.getFromStorage/g' script.js
-sed -i.bak 's/localStorage\.setItem/this.saveToStorage/g' script.js
+# Upload static files to Object Storage
+echo -e "${YELLOW}📤 Uploading static files to Object Storage...${NC}"
 
-# Add API integration to script.js
-cat >> script.js << 'EOF'
+# Upload HTML files
+scw object object put bucket=${BUCKET_NAME} key=index.html file=index.html region=${SCW_REGION} content-type=text/html cache-control="public, max-age=300"
 
-// API Integration for Scaleway deployment
-class APIClient {
-    constructor() {
-        this.baseURL = window.APP_CONFIG?.API_BASE_URL || '';
-        this.userId = this.getUserId();
-    }
+# Upload CSS files
+scw object object put bucket=${BUCKET_NAME} key=styles.css file=styles.css region=${SCW_REGION} content-type=text/css cache-control="public, max-age=31536000"
 
-    getUserId() {
-        let userId = localStorage.getItem('user_id');
-        if (!userId) {
-            userId = 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
-            localStorage.setItem('user_id', userId);
-        }
-        return userId;
-    }
+# Upload JS files
+scw object object put bucket=${BUCKET_NAME} key=script.js file=script.js region=${SCW_REGION} content-type=application/javascript cache-control="public, max-age=31536000"
 
-    async request(endpoint, options = {}) {
-        if (!this.baseURL) return null;
-        
-        try {
-            const response = await fetch(`${this.baseURL}${endpoint}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-User-ID': this.userId,
-                    ...options.headers
-                },
-                ...options
-            });
-            
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
-        } catch (error) {
-            console.warn('API request failed, falling back to local storage:', error);
-            return null;
-        }
-    }
+# Upload config file
+scw object object put bucket=${BUCKET_NAME} key=config.js file=config.js region=${SCW_REGION} content-type=application/javascript cache-control="public, max-age=300"
 
-    async saveEvents(events) {
-        return await this.request('/api/events', {
-            method: 'POST',
-            body: JSON.stringify(events)
-        });
-    }
-
-    async loadEvents() {
-        return await this.request('/api/events');
-    }
-
-    async saveTasks(tasks) {
-        return await this.request('/api/tasks', {
-            method: 'POST',
-            body: JSON.stringify(tasks)
-        });
-    }
-
-    async loadTasks() {
-        return await this.request('/api/tasks');
-    }
-
-    async getAnalytics() {
-        return await this.request('/api/analytics');
-    }
-
-    async exportData() {
-        return await this.request('/api/backup');
-    }
-
-    async importData(data) {
-        return await this.request('/api/backup', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
-    }
-}
-
-// Extend YearPlanner with API integration
-if (typeof YearPlanner !== 'undefined') {
-    const originalClass = YearPlanner;
-    
-    YearPlanner = class extends originalClass {
-        constructor() {
-            super();
-            this.api = new APIClient();
-            this.loadFromAPI();
-        }
-
-        async loadFromAPI() {
-            try {
-                const [events, tasks] = await Promise.all([
-                    this.api.loadEvents(),
-                    this.api.loadTasks()
-                ]);
-                
-                if (events) {
-                    this.events = events;
-                    localStorage.setItem('events', JSON.stringify(events));
-                }
-                if (tasks) {
-                    this.tasks = tasks;
-                    localStorage.setItem('tasks', JSON.stringify(tasks));
-                }
-                
-                // Re-render if data was loaded from API
-                if (events || tasks) {
-                    this.renderEvents();
-                    this.renderTasks();
-                    this.renderTimeline();
-                    this.renderUnfinishedTasks();
-                    this.renderFutureOverview();
-                    this.renderDashboard();
-                }
-            } catch (error) {
-                console.warn('Failed to load from API:', error);
-            }
-        }
-
-        saveToStorage() {
-            // Save to localStorage (existing functionality)
-            localStorage.setItem('events', JSON.stringify(this.events));
-            localStorage.setItem('tasks', JSON.stringify(this.tasks));
-            
-            // Also save to API
-            this.api.saveEvents(this.events);
-            this.api.saveTasks(this.tasks);
-        }
-    };
-}
+# Create error page
+cat > error.html << EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error - Swedish Year Planner</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        h1 { color: #667eea; }
+    </style>
+</head>
+<body>
+    <h1>🇸🇪 Swedish Year Planner</h1>
+    <h2>Oops! Page not found</h2>
+    <p><a href="/">Return to Year Planner</a></p>
+</body>
+</html>
 EOF
 
-# Deploy static assets to Object Storage
-echo -e "${YELLOW}☁️  Deploying static assets to Object Storage...${NC}"
+scw object object put bucket=${BUCKET_NAME} key=error.html file=error.html region=${SCW_REGION} content-type=text/html
 
-# Configure AWS CLI for Scaleway S3
-aws configure set aws_access_key_id $SCW_ACCESS_KEY --profile scaleway
-aws configure set aws_secret_access_key $SCW_SECRET_KEY --profile scaleway
-aws configure set region $REGION --profile scaleway
+# Get website URL
+WEBSITE_URL="https://${BUCKET_NAME}.s3-website.${SCW_REGION}.scw.cloud"
 
-# Upload static files
-aws s3 sync . s3://$BUCKET_NAME \
-    --profile scaleway \
-    --endpoint-url https://s3.${REGION}.scw.cloud \
-    --exclude "*.sh" \
-    --exclude "*.md" \
-    --exclude ".git/*" \
-    --exclude "node_modules/*" \
-    --exclude "terraform/*" \
-    --exclude "functions/*" \
-    --exclude "*.zip" \
-    --exclude "*.bak" \
-    --exclude ".claude/*" \
-    --cache-control "public, max-age=31536000" \
-    --content-type "text/html" \
-    --exclude "*" \
-    --include "*.html"
-
-aws s3 sync . s3://$BUCKET_NAME \
-    --profile scaleway \
-    --endpoint-url https://s3.${REGION}.scw.cloud \
-    --exclude "*" \
-    --include "*.css" \
-    --cache-control "public, max-age=31536000" \
-    --content-type "text/css"
-
-aws s3 sync . s3://$BUCKET_NAME \
-    --profile scaleway \
-    --endpoint-url https://s3.${REGION}.scw.cloud \
-    --exclude "*" \
-    --include "*.js" \
-    --cache-control "public, max-age=31536000" \
-    --content-type "application/javascript"
-
-# Update function with actual code
-echo -e "${YELLOW}🚀 Updating serverless function...${NC}"
-aws s3 cp functions/function.zip s3://$BUCKET_NAME/function.zip \
-    --profile scaleway \
-    --endpoint-url https://s3.${REGION}.scw.cloud
-
-# Deploy function (you'll need the Scaleway CLI for this)
-if command -v scw &> /dev/null; then
-    echo -e "${YELLOW}📡 Updating function code...${NC}"
-    scw function deploy $API_FUNCTION_ID --zip-file functions/function.zip
+# Test API endpoint
+echo -e "${YELLOW}🧪 Testing API endpoint...${NC}"
+if curl -s "${API_URL}/api/health" > /dev/null; then
+    echo -e "${GREEN}✅ API endpoint is responding${NC}"
 else
-    echo -e "${YELLOW}⚠️  Scaleway CLI not found. Please update function manually:${NC}"
-    echo "Function ID: $API_FUNCTION_ID"
-    echo "Zip file: functions/function.zip"
+    echo -e "${YELLOW}⚠️  API endpoint may not be ready yet${NC}"
 fi
 
 # Cleanup
-rm -f script.js.bak
-rm -f config.js
-rm -f terraform/placeholder.zip
+rm -f config.js error.html
 
 echo ""
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
@@ -292,10 +215,29 @@ echo ""
 echo -e "${BLUE}📱 Website URL: ${WEBSITE_URL}${NC}"
 echo -e "${BLUE}🔗 API URL: ${API_URL}${NC}"
 echo -e "${BLUE}📦 Bucket: ${BUCKET_NAME}${NC}"
+echo -e "${BLUE}⚡ Function ID: ${FUNCTION_ID}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Visit the website URL to test your deployment"
 echo "2. The app now uses serverless functions for data persistence"
-echo "3. Monitor your function logs in the Scaleway console"
+echo "3. Monitor your function logs: scw function log list function-id=${FUNCTION_ID}"
 echo ""
 echo -e "${GREEN}Happy planning! 🇸🇪✨${NC}"
+
+# Save deployment info
+cat > deployment-info.json << EOF
+{
+  "environment": "${ENVIRONMENT}",
+  "region": "${SCW_REGION}",
+  "project_id": "${SCW_PROJECT_ID}",
+  "website_url": "${WEBSITE_URL}",
+  "api_url": "${API_URL}",
+  "bucket_name": "${BUCKET_NAME}",
+  "backup_bucket_name": "${BACKUP_BUCKET_NAME}",
+  "namespace_id": "${NAMESPACE_ID}",
+  "function_id": "${FUNCTION_ID}",
+  "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+echo -e "${BLUE}📋 Deployment info saved to deployment-info.json${NC}"
