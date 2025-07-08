@@ -76,6 +76,7 @@ jobs:
     - name: Verify Scaleway CLI
       run: |
         scw version
+        echo "Checking configuration..."
         scw config get access-key || echo "Access key not configured"
         scw config get default-project-id || echo "Project ID not configured"
     
