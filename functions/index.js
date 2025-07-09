@@ -176,7 +176,9 @@ function handleHealth() {
  * Handle events API
  */
 async function handleEvents(method, body, query, headers) {
-  const userId = headers['x-user-id'] || 'anonymous';
+  // Find user ID header regardless of case
+  const userIdHeader = Object.keys(headers).find(key => key.toLowerCase() === 'x-user-id');
+  const userId = userIdHeader ? headers[userIdHeader] : 'anonymous';
 
   switch (method) {
     case 'GET':
@@ -220,7 +222,9 @@ async function handleEvents(method, body, query, headers) {
  * Handle tasks API
  */
 async function handleTasks(method, body, query, headers) {
-  const userId = headers['x-user-id'] || 'anonymous';
+  // Find user ID header regardless of case
+  const userIdHeader = Object.keys(headers).find(key => key.toLowerCase() === 'x-user-id');
+  const userId = userIdHeader ? headers[userIdHeader] : 'anonymous';
 
   switch (method) {
     case 'GET':
