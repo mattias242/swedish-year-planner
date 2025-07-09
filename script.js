@@ -971,12 +971,8 @@ class YearPlanner {
     }
 
     getUserId() {
-        let userId = localStorage.getItem('userId');
-        if (!userId) {
-            userId = 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
-            localStorage.setItem('userId', userId);
-        }
-        return userId;
+        // Use fixed user ID for simplified data sharing across devices
+        return 'swedish-year-planner-user';
     }
 
     async loadFromCloud() {
