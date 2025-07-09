@@ -4,22 +4,25 @@
  */
 
 const cors = require('cors');
+const StorageAdapter = require('./storage');
 
-// Note: Object Storage integration requires environment variables to be configured
-// For now, using in-memory storage as fallback
+// Initialize storage based on environment
+const storageType = process.env.STORAGE_TYPE || 'memory';
+const storage = new StorageAdapter(storageType);
+
+// Configure Object Storage if credentials are available
 const useObjectStorage = process.env.SCW_ACCESS_KEY && process.env.SCW_SECRET_KEY;
-
-let s3, BUCKET_NAME;
 if (useObjectStorage) {
   const AWS = require('aws-sdk');
-  s3 = new AWS.S3({
+  const s3 = new AWS.S3({
     endpoint: 'https://s3.fr-par.scw.cloud',
     region: 'fr-par',
     accessKeyId: process.env.SCW_ACCESS_KEY,
     secretAccessKey: process.env.SCW_SECRET_KEY,
     s3ForcePathStyle: true
   });
-  BUCKET_NAME = process.env.BUCKET_NAME || 'swedish-year-planner-prod';
+  const BUCKET_NAME = process.env.BUCKET_NAME || 'swedish-year-planner-data';
+  storage.configureS3(s3, BUCKET_NAME);
 }
 
 // CORS configuration for frontend
@@ -27,7 +30,8 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://localhost:8080',
-    'https://swedish-year-planner.s3.fr-par.scw.cloud',
+    'http://localhost:8000',
+    'https://swedish-year-planner-prod.s3-website.fr-par.scw.cloud',
     process.env.FRONTEND_URL
   ].filter(Boolean),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -35,54 +39,28 @@ const corsOptions = {
   credentials: true
 };
 
-// Simple in-memory storage (fallback when Object Storage not configured)
-const storage = new Map();
+// Initialize storage
+async function initStorage() {
+  await storage.init();
+}
 
-// Scaleway Object Storage helper functions
+// Storage helper functions
 async function saveUserData(userId, dataType, data) {
-  if (useObjectStorage) {
-    const key = `users/${userId}/${dataType}.json`;
-    try {
-      await s3.putObject({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: JSON.stringify(data),
-        ContentType: 'application/json'
-      }).promise();
-      return true;
-    } catch (error) {
-      console.error('Failed to save to Object Storage:', error);
-      // Fall back to in-memory storage
-      storage.set(`${userId}_${dataType}`, data);
-      return true;
-    }
-  } else {
-    // Use in-memory storage
-    storage.set(`${userId}_${dataType}`, data);
+  try {
+    await storage.save(userId, dataType, data);
     return true;
+  } catch (error) {
+    console.error('Failed to save user data:', error);
+    return false;
   }
 }
 
 async function loadUserData(userId, dataType) {
-  if (useObjectStorage) {
-    const key = `users/${userId}/${dataType}.json`;
-    try {
-      const result = await s3.getObject({
-        Bucket: BUCKET_NAME,
-        Key: key
-      }).promise();
-      return JSON.parse(result.Body.toString());
-    } catch (error) {
-      if (error.code === 'NoSuchKey') {
-        return []; // Return empty array if file doesn't exist
-      }
-      console.error('Failed to load from Object Storage:', error);
-      // Fall back to in-memory storage
-      return storage.get(`${userId}_${dataType}`) || [];
-    }
-  } else {
-    // Use in-memory storage
-    return storage.get(`${userId}_${dataType}`) || [];
+  try {
+    return await storage.load(userId, dataType);
+  } catch (error) {
+    console.error('Failed to load user data:', error);
+    return [];
   }
 }
 
@@ -90,6 +68,9 @@ async function loadUserData(userId, dataType) {
  * Main handler function for Scaleway Serverless Functions
  */
 exports.handler = async (event, context) => {
+  // Initialize storage on first request
+  await initStorage();
+  
   const { httpMethod, path, headers, body, queryStringParameters } = event;
   
   // Apply CORS
@@ -275,7 +256,9 @@ async function handleAnalytics(method, query, headers) {
     };
   }
 
-  const userId = headers['x-user-id'] || 'anonymous';
+  // Find user ID header regardless of case
+  const userIdHeader = Object.keys(headers).find(key => key.toLowerCase() === 'x-user-id');
+  const userId = userIdHeader ? headers[userIdHeader] : 'anonymous';
   
   try {
     const events = await loadUserData(userId, 'events');
@@ -306,7 +289,9 @@ async function handleAnalytics(method, query, headers) {
  * Handle backup/export API
  */
 async function handleBackup(method, body, headers) {
-  const userId = headers['x-user-id'] || 'anonymous';
+  // Find user ID header regardless of case
+  const userIdHeader = Object.keys(headers).find(key => key.toLowerCase() === 'x-user-id');
+  const userId = userIdHeader ? headers[userIdHeader] : 'anonymous';
 
   switch (method) {
     case 'GET':

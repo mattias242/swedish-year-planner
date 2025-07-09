@@ -30,20 +30,69 @@ FUNCTION_ID=${FUNCTION_ID:-""}
 
 # Handle help flag
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    echo "Swedish Year Planner - Scaleway Deployment Script"
+    echo "Swedish Year Planner - Deployment Script"
     echo ""
-    echo "Usage: $0 [ENVIRONMENT] [REGION]"
+    echo "Usage: $0 [ENVIRONMENT] [REGION] [OPTIONS]"
     echo ""
     echo "Arguments:"
     echo "  ENVIRONMENT    Deployment environment (default: prod)"
     echo "  REGION         Scaleway region (default: fr-par)"
     echo ""
+    echo "Options:"
+    echo "  --local        Run local development server instead of deploying"
+    echo "  --test         Run tests before deployment"
+    echo "  --skip-tests   Skip running tests before deployment"
+    echo ""
     echo "Examples:"
-    echo "  $0                    # Deploy to prod in fr-par"
-    echo "  $0 staging           # Deploy to staging in fr-par"
-    echo "  $0 prod nl-ams       # Deploy to prod in nl-ams"
+    echo "  $0                    # Deploy to prod in fr-par (with tests)"
+    echo "  $0 staging           # Deploy to staging in fr-par (with tests)"
+    echo "  $0 prod nl-ams       # Deploy to prod in nl-ams (with tests)"
+    echo "  $0 --local           # Start local development server"
+    echo "  $0 --test            # Run tests only"
+    echo "  $0 --skip-tests      # Deploy without running tests"
     echo ""
     exit 0
+fi
+
+# Handle local development mode
+if [ "$1" = "--local" ]; then
+    printf "${BLUE}🇸🇪 Swedish Year Planner - Local Development Mode${NC}\n"
+    printf "${YELLOW}Starting local development server...${NC}\n"
+    
+    cd functions
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ]; then
+        printf "${YELLOW}Installing dependencies...${NC}\n"
+        npm install
+    fi
+    
+    # Start local server with file storage
+    printf "${GREEN}✅ Starting server on http://localhost:3000${NC}\n"
+    printf "${BLUE}Storage type: local (JSON files in ./data)${NC}\n"
+    printf "${BLUE}Press Ctrl+C to stop${NC}\n"
+    echo ""
+    
+    STORAGE_TYPE=local NODE_ENV=development npm run dev:local
+    exit 0
+fi
+
+# Handle test mode
+if [ "$1" = "--test" ]; then
+    printf "${BLUE}🇸🇪 Swedish Year Planner - Test Mode${NC}\n"
+    printf "${YELLOW}Running tests...${NC}\n"
+    
+    cd functions
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ]; then
+        printf "${YELLOW}Installing dependencies...${NC}\n"
+        npm install
+    fi
+    
+    # Run tests
+    npm test
+    exit $?
 fi
 
 printf "${BLUE}🇸🇪 Swedish Year Planner - Scaleway Deployment${NC}\n"
@@ -81,6 +130,26 @@ SCW_REGION=$(scw config get default-region || echo $REGION)
 printf "${GREEN}✅ Scaleway CLI configured${NC}\n"
 printf "${BLUE}Project ID: ${SCW_PROJECT_ID}${NC}\n"
 printf "${BLUE}Region: ${SCW_REGION}${NC}\n"
+
+# Run tests before deployment (optional)
+if [ "$1" != "--skip-tests" ]; then
+    printf "${YELLOW}🧪 Running tests before deployment...${NC}\n"
+    cd functions
+    
+    # Install all dependencies for testing
+    npm install
+    
+    # Run tests
+    npm test
+    if [ $? -ne 0 ]; then
+        printf "${RED}❌ Tests failed. Deployment aborted.${NC}\n"
+        printf "${YELLOW}Run with --skip-tests to bypass this check${NC}\n"
+        exit 1
+    fi
+    
+    printf "${GREEN}✅ All tests passed${NC}\n"
+    cd ..
+fi
 
 # Build function package
 printf "${YELLOW}📦 Building function package...${NC}\n"

@@ -65,8 +65,11 @@ app.all('*', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Local development server running on http://localhost:${PORT}`);
-  console.log('Available endpoints:');
+  console.log(`🇸🇪 Swedish Year Planner API server running on http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Storage type: ${process.env.STORAGE_TYPE || 'memory'}`);
+  console.log(`Data directory: ${process.env.STORAGE_TYPE === 'local' ? './data' : 'N/A'}`);
+  console.log('\nTillgängliga endpoints:');
   console.log('  GET  /api/health     - Health check');
   console.log('  GET  /api/events     - Get events');
   console.log('  POST /api/events     - Save events');
@@ -75,4 +78,7 @@ app.listen(PORT, () => {
   console.log('  GET  /api/analytics  - Get analytics');
   console.log('  GET  /api/backup     - Export data');
   console.log('  POST /api/backup     - Import data');
+  console.log('\nTesta API:t:');
+  console.log(`  curl http://localhost:${PORT}/api/health`);
+  console.log(`  curl http://localhost:${PORT}/api/events -H "X-User-ID: testuser"`);
 });
